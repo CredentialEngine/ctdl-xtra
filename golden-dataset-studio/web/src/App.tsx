@@ -23,6 +23,7 @@ import { RunBar } from "./agent/RunBar";
 import { RunsPanel } from "./agent/RunsPanel";
 import { CATALOG_CHANGED, OPEN_RUNS, type OpenRuns } from "./agent/api";
 import { RunDialogHost } from "./agent/RunDialog";
+import { pageInfo, pageView } from "./telemetry";
 import "./styles.css";
 import "./shell/dark.css";
 
@@ -84,6 +85,9 @@ export default function App() {
     history.replaceState(null, "", location.hash.split("?")[0] + (rest.toString() ? `?${rest}` : ""));
   }, [route.params]);
   const known = useHasIdentity();
+  useEffect(() => {  // one page view per route opened (a no-op unless telemetry is on)
+    if (session) pageView(pageInfo(signedIn && known, route.catalog, route.tab, route.id, route.cls));
+  }, [session, signedIn, known, route.catalog, route.tab, route.id]);
   if (!session) return null;
   if (!known || !signedIn) return <IdentityScreen needPassword={!signedIn} />;
 

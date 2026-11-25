@@ -13,7 +13,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, Request
 
-from .. import crawls
+from .. import crawls, telemetry
 from ..storage import open_root
 from .state import studio
 
@@ -58,20 +58,31 @@ def add(request: Request, catalog: str, body: Annotated[dict, Body()]) -> dict:
                "started_at": time.time()}
         st.adding[catalog] = job
 
+    carried = telemetry.carry()
+    telemetry.set({"ce.catalog.folder": catalog, "ce.crawl.id": crawl, "ce.crawl.pages": k["pages"]})
+
     def run() -> None:
-        try:
-            crawls.add_catalog(st.root, open_root(st.crawls_root), catalog, crawl, by=job["by"],
-                               progress=lambda **kw: job.update(kw))
-            st.cache.pop(("crawls",), None)
-            with st._lock:  # the picker drops the job once its (re-read) manifest has the catalog
-                for ctx in st._ctx.values():
-                    ctx.invalidate()
-        except Exception as exc:  # shown on the card; adding it again resumes
-            print(f"add {catalog}: {exc}", file=sys.stderr)
-            job.update(step="failed", error=str(exc))
+        with telemetry.job("catalog.add", {"ce.catalog.folder": catalog, "ce.crawl.id": crawl,
+                                           "ce.crawl.pages": k["pages"]}, carried=carried):
+            _add(job, st, catalog, crawl)
 
     threading.Thread(target=run, name=f"add-{catalog}", daemon=True).start()
     return job
+
+
+def _add(job: dict, st, catalog: str, crawl: str) -> None:
+    """Copy the crawl in, index and archive it (the add job's thread); a failure is shown on the picker's card."""
+    try:
+        crawls.add_catalog(st.root, open_root(st.crawls_root), catalog, crawl, by=job["by"],
+                           progress=lambda **kw: job.update(kw))
+        st.cache.pop(("crawls",), None)
+        with st._lock:  # the picker drops the job once its (re-read) manifest has the catalog
+            for ctx in st._ctx.values():
+                ctx.invalidate()
+    except Exception as exc:  # shown on the card; adding it again resumes
+        print(f"add {catalog}: {exc}", file=sys.stderr)
+        job.update(step="failed", error=str(exc))
+        telemetry.error(exc)
 
 
 @router.delete("/crawls/{catalog}/add")

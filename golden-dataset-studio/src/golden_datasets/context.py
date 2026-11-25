@@ -13,7 +13,7 @@ from functools import cached_property
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from . import classes, layout, manifest, model
+from . import classes, layout, manifest, model, telemetry
 from .catalogs import resolve
 from .errors import UserError
 from .storage import Root, open_root
@@ -131,7 +131,8 @@ class Ctx:
         from concurrent.futures import ThreadPoolExecutor
 
         with ThreadPoolExecutor(max_workers=16) as pool:  # one round trip each on Azure: fetch them together
-            docs = list(pool.map(lambda e: self.rule(e["rule_id"], e["version"]), rs["rules"]))
+            read_rule = telemetry.in_this_request(lambda e: self.rule(e["rule_id"], e["version"]))
+            docs = list(pool.map(read_rule, rs["rules"]))
         return rs, {e["rule_id"]: d for e, d in zip(rs["rules"], docs)}
 
     def rule_versions(self, rule_id: str) -> list[int]:

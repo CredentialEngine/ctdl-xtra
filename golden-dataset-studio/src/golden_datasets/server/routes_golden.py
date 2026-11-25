@@ -17,7 +17,7 @@ from collections import Counter
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from .. import golden, model, properties, scores
+from .. import golden, model, properties, scores, telemetry
 from ..review import LOADER
 from ..storage import open_root
 from .state import not_found, studio
@@ -112,6 +112,7 @@ def golden_versions(request: Request, catalog: str) -> dict:
                       "trees": {t: {"prefix": golden.version_prefix(ctx, n, t), "pages": (trees.get(t) or {}).get("pages")}
                                 for t in golden.TREES},
                       "latest": golden.latest_prefix(ctx) if latest else None, "studio": f"{vs[n]['path']}/"}})
+    telemetry.set({"ce.golden.versions": len(out), "ce.crawl.id": ctx.crawl})
     return {"catalog": ctx.catalog, "crawl": ctx.crawl, "versions": out, "latest_output": latest_out,
             "running": request.app.state.scores.busy(ctx.catalog), "golden": _golden_now(st, ctx)}
 

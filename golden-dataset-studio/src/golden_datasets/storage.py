@@ -34,6 +34,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
+from . import telemetry
 from .errors import ConflictError, UserError
 
 AZURITE_CONNECTION = (
@@ -152,12 +153,14 @@ class LocalRoot(Root):
     def _etag(st: os.stat_result) -> str:
         return f"{st.st_mtime_ns:x}-{st.st_size:x}"
 
+    @telemetry.storage_op("read")
     def read_bytes(self, path: str) -> bytes:
         try:
             return self._p(path).read_bytes()
         except FileNotFoundError:
             raise FileNotFoundError(f"{self.uri}/{path}") from None
 
+    @telemetry.storage_op("stat")
     def stat(self, path: str) -> Stat | None:
         try:
             st = self._p(path).stat()
@@ -166,6 +169,7 @@ class LocalRoot(Root):
         return Stat(self._etag(st), st.st_size, datetime.fromtimestamp(st.st_mtime, UTC)) \
             if not self._p(path).is_dir() else None
 
+    @telemetry.storage_op("read")
     def read_from(self, path: str, offset: int) -> bytes:
         try:
             with open(self._p(path), "rb") as fh:
@@ -190,6 +194,7 @@ class LocalRoot(Root):
         start = self._p(prefix) if prefix else self.base
         return sorted(p.name for p in start.iterdir() if p.is_dir()) if start.is_dir() else []
 
+    @telemetry.storage_op("local_path")
     def local_path(self, path: str, mutable: bool = False) -> Path:
         p = self._p(path)
         if not p.exists():
@@ -206,6 +211,7 @@ class LocalRoot(Root):
             finally:
                 fcntl.flock(lk, fcntl.LOCK_UN)
 
+    @telemetry.storage_op("write")
     def write_bytes(self, path: str, data: bytes, *, if_match: str | None = None,
                     if_none_match: bool = False) -> str:
         p = self._p(path)
@@ -221,6 +227,7 @@ class LocalRoot(Root):
             os.replace(tmp, p)
             return self._etag(p.stat())
 
+    @telemetry.storage_op("write")
     def write_file(self, path: str, local: Path, *, if_none_match: bool = False) -> str:
         p = self._p(path)
         with self._lock(p):
@@ -232,6 +239,7 @@ class LocalRoot(Root):
             os.replace(tmp, p)
             return self._etag(p.stat())
 
+    @telemetry.storage_op("write")
     def append(self, path: str, data: bytes) -> int:
         p = self._p(path)
         with self._lock(p):
@@ -319,6 +327,7 @@ class AzureRoot(Root):
     def _blob(self, path: str):
         return self.container.get_blob_client(self._name(path))
 
+    @telemetry.storage_op("read")
     def read_bytes(self, path: str) -> bytes:
         from azure.core.exceptions import ResourceNotFoundError
 
@@ -327,6 +336,7 @@ class AzureRoot(Root):
         except ResourceNotFoundError:
             raise FileNotFoundError(f"{self.uri}/{path}") from None
 
+    @telemetry.storage_op("stat")
     def stat(self, path: str) -> Stat | None:
         from azure.core.exceptions import ResourceNotFoundError
 
@@ -336,6 +346,7 @@ class AzureRoot(Root):
             return None
         return Stat(props.etag, props.size, props.last_modified)
 
+    @telemetry.storage_op("read")
     def read_from(self, path: str, offset: int) -> bytes:
         from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 
@@ -348,6 +359,7 @@ class AzureRoot(Root):
                 return b""
             raise
 
+    @telemetry.storage_op("list")
     def list(self, prefix: str) -> list[str]:
         start = self._name(prefix) if prefix else self.prefix
         start = (start.rstrip("/") + "/") if start else ""
@@ -374,6 +386,7 @@ class AzureRoot(Root):
         cut = len(self.prefix) + 1 if self.prefix else 0
         return {b.name[cut:]: b.size for b in self.container.list_blobs(name_starts_with=start)}
 
+    @telemetry.storage_op("local_path")
     def local_path(self, path: str, mutable: bool = False) -> Path:
         dest = self.cache / _clean(path)
         etag_file = dest.with_name(dest.name + ".etag")
@@ -395,7 +408,8 @@ class AzureRoot(Root):
             try:
                 with os.fdopen(fd, "wb") as fh:
                     downloader = self._blob(path).download_blob(max_concurrency=4)
-                    downloader.readinto(fh)
+                    telemetry.count("stats.storage.azure.downloads")
+                    telemetry.count("stats.storage.azure.bytes_downloaded", downloader.readinto(fh))
                 os.replace(tmp, dest)
             except ResourceNotFoundError:
                 os.unlink(tmp)
@@ -403,6 +417,7 @@ class AzureRoot(Root):
             etag_file.write_text(downloader.properties.etag)
             return dest
 
+    @telemetry.storage_op("write")
     def write_bytes(self, path: str, data: bytes, *, if_match: str | None = None,
                     if_none_match: bool = False) -> str:
         from azure.core import MatchConditions
@@ -424,6 +439,7 @@ class AzureRoot(Root):
             raise
         return resp["etag"]
 
+    @telemetry.storage_op("write")
     def write_file(self, path: str, local: Path, *, if_none_match: bool = False) -> str:
         from azure.core.exceptions import ResourceExistsError
         from azure.storage.blob import ContentSettings
@@ -437,6 +453,7 @@ class AzureRoot(Root):
                 raise ConflictError(f"{path} already exists") from None
         return resp["etag"]
 
+    @telemetry.storage_op("write")
     def append(self, path: str, data: bytes) -> int:
         size = 0
         for i in range(0, max(len(data), 1), APPEND_BLOCK):  # an append block holds at most 4 MiB
