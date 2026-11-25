@@ -42,6 +42,13 @@ export function sharedChromeArgs(options?: { proxyServerUrl?: string }): string[
   ].filter(Boolean);
 }
 
+/** Chrome must not inherit Node-only flags from `NODE_OPTIONS` (e.g. `--inspect`). */
+export function puppeteerChildProcessEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  return env;
+}
+
 /** Puppeteer launch options shared by `getCluster` and the agentic Chrome session. */
 export function sharedPuppeteerLaunchOptions(options?: {
   proxyServerUrl?: string;
@@ -49,10 +56,12 @@ export function sharedPuppeteerLaunchOptions(options?: {
   headless: true;
   ignoreHTTPSErrors: true;
   args: string[];
+  env: NodeJS.ProcessEnv;
 } {
   return {
     headless: true,
     ignoreHTTPSErrors: true,
     args: sharedChromeArgs({ proxyServerUrl: options?.proxyServerUrl }),
+    env: puppeteerChildProcessEnv(),
   };
 }
