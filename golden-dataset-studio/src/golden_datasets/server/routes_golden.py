@@ -27,6 +27,41 @@ HTML_PREVIEW_BYTES = 400_000
 TREES = (golden.RULE_MATCHED, golden.HUMAN_REVIEWED, "latest")
 
 
+@router.get("/catalogs/{catalog}/golden")
+def golden_versions(request: Request, catalog: str) -> dict:
+    st = studio(request)
+    ctx = st.ctx(catalog)
+    vs = golden.versions(ctx)
+    docs = scores.all_scores(ctx) if vs else []
+    outs = scores.outputs(ctx)
+    latest_out = outs[-1]["id"] if outs else None
+    out = [version_entry(st, ctx, vs, n, docs, latest_out) for n in sorted(vs, reverse=True)]
+    telemetry.set({"ce.golden.versions": len(out), "ce.crawl.id": ctx.crawl})
+    return {"catalog": ctx.catalog, "crawl": ctx.crawl, "versions": out, "latest_output": latest_out,
+            "running": request.app.state.scores.busy(ctx.catalog), "golden": _golden_now(st, ctx)}
+
+
+def version_entry(st, ctx, vs: dict, n: int, docs: list[dict], latest_out: str | None) -> dict:
+    doc = _pub(ctx, vs, n)
+    latest = n == max(vs)
+    vid = golden.version_name(n)
+    counts = _values_now(st, ctx, doc) if latest and doc else _values_then(st, ctx, vs[n]["path"], doc)
+    return {
+        "id": vid, "ruleset_version": n, "latest": latest, "columns": golden.columns_of(doc.get("properties") or []),
+        "values": counts["values"], "human": counts["human"], "published_at": doc.get("published_at"),
+        "created_at": doc.get("created_at"), "published_by": doc.get("published_by"),
+        "extraction": doc.get("extraction"), "score": _score(docs, vid, latest_out),
+        "where": version_where(ctx, vs, n, doc, latest)}
+
+
+def version_where(ctx, vs: dict, n: int, doc: dict, latest: bool) -> dict:
+    trees = doc.get("trees") or {}
+    return {"root": vs[n].get("to"), "version": f"{golden.version_root(ctx, n).rsplit('/', 1)[0]}/",
+            "trees": {t: {"prefix": golden.version_prefix(ctx, n, t), "pages": (trees.get(t) or {}).get("pages")}
+                      for t in golden.TREES},
+            "latest": golden.latest_prefix(ctx) if latest else None, "studio": f"{vs[n]['path']}/"}
+
+
 def _pub(ctx, vs: dict, n: int) -> dict:
     try:
         return ctx.read_json(f"{vs[n]['path']}/publication.json", immutable=False)
@@ -48,13 +83,6 @@ def _values_now(st, ctx, doc: dict) -> Counter:
     return st.cache[key]
 
 
-def _table(ctx, path: str) -> list[dict]:
-    """A version's Parquet file, read again each time (publishing rewrites it)."""
-    import pyarrow.parquet as pq
-
-    return pq.read_table(ctx.root.local_path(path, mutable=True)).to_pylist()
-
-
 def _values_then(st, ctx, path: str, doc: dict) -> Counter:
     """An older version's values, as published (golden.parquet): those with a CTDL term. Only the latest version's
     files change (with each verdict), so an older one's counts are kept, per its publication: each visit to Datasets
@@ -74,12 +102,6 @@ def _count_values(ctx, path: str) -> Counter:
     return Counter(values=len(rows), human=sum(r["approval"] == "human" for r in rows))
 
 
-def _of(doc: dict, vid: str) -> bool:
-    """Whether a score read this version (as `ruleset-vN`, or as the human-reviewed values when it was the latest)."""
-    g = doc["golden"]
-    return g["id"] == vid or (g["kind"] == "human-reviewed" and g.get("from", "").rstrip("/").endswith(f"/{vid}"))
-
-
 def _score(docs: list[dict], vid: str, output: str | None) -> dict | None:
     """The newest score of this version against the latest extract output: done (its exact matches, on the
     human-reviewed values if it has any, else the rule-matched ones), or still running."""
@@ -88,43 +110,26 @@ def _score(docs: list[dict], vid: str, output: str | None) -> dict | None:
             continue
         if d["status"] == "running":
             return {"id": d["id"], "status": "running"}
-        res = d.get("results") or {}
-        basis = "human" if res.get("human") else "rule"
-        r = res.get(basis)
-        if r:
-            return {"id": d["id"], "status": "done", "basis": basis, "rate": r["exact_match_rate"],
-                    "values": r["values"], "match": r["outcomes"]["match"], "output": d["output"]["id"],
-                    "finished_at": d.get("finished_at")}
+        if summary := done_score(d):
+            return summary
     return None
 
 
-@router.get("/catalogs/{catalog}/golden")
-def golden_versions(request: Request, catalog: str) -> dict:
-    st = studio(request)
-    ctx = st.ctx(catalog)
-    vs = golden.versions(ctx)
-    docs = scores.all_scores(ctx) if vs else []
-    outs = scores.outputs(ctx)
-    latest_out = outs[-1]["id"] if outs else None
-    out = []
-    for n in sorted(vs, reverse=True):
-        doc = _pub(ctx, vs, n)
-        latest = n == max(vs)
-        vid = golden.version_name(n)
-        counts = _values_now(st, ctx, doc) if latest and doc else _values_then(st, ctx, vs[n]["path"], doc)
-        trees = doc.get("trees") or {}
-        out.append({
-            "id": vid, "ruleset_version": n, "latest": latest, "columns": golden.columns_of(doc.get("properties") or []),
-            "values": counts["values"], "human": counts["human"], "published_at": doc.get("published_at"),
-            "created_at": doc.get("created_at"), "published_by": doc.get("published_by"),
-            "extraction": doc.get("extraction"), "score": _score(docs, vid, latest_out),
-            "where": {"root": vs[n].get("to"), "version": f"{golden.version_root(ctx, n).rsplit('/', 1)[0]}/",
-                      "trees": {t: {"prefix": golden.version_prefix(ctx, n, t), "pages": (trees.get(t) or {}).get("pages")}
-                                for t in golden.TREES},
-                      "latest": golden.latest_prefix(ctx) if latest else None, "studio": f"{vs[n]['path']}/"}})
-    telemetry.set({"ce.golden.versions": len(out), "ce.crawl.id": ctx.crawl})
-    return {"catalog": ctx.catalog, "crawl": ctx.crawl, "versions": out, "latest_output": latest_out,
-            "running": request.app.state.scores.busy(ctx.catalog), "golden": _golden_now(st, ctx)}
+def done_score(d: dict) -> dict | None:
+    res = d.get("results") or {}
+    basis = "human" if res.get("human") else "rule"
+    r = res.get(basis)
+    if not r:
+        return None
+    return {"id": d["id"], "status": "done", "basis": basis, "rate": r["exact_match_rate"],
+            "values": r["values"], "match": r["outcomes"]["match"], "output": d["output"]["id"],
+            "finished_at": d.get("finished_at")}
+
+
+def _of(doc: dict, vid: str) -> bool:
+    """Whether a score read this version (as `ruleset-vN`, or as the human-reviewed values when it was the latest)."""
+    g = doc["golden"]
+    return g["id"] == vid or (g["kind"] == "human-reviewed" and g.get("from", "").rstrip("/").endswith(f"/{vid}"))
 
 
 def _golden_now(st, ctx) -> dict:
@@ -144,6 +149,9 @@ def _golden_now(st, ctx) -> dict:
     return st.cache[key]
 
 
+# --- approving a column's rule ---------------------------------------------------------------------------------
+
+
 @router.get("/catalogs/{catalog}/golden/approve/{rule_id}")
 def approve_preview(request: Request, catalog: str, rule_id: str) -> dict:
     """What approving this rule publishes: the golden dataset's columns now and after, and the column's values (how
@@ -157,22 +165,31 @@ def approve_preview(request: Request, catalog: str, rule_id: str) -> dict:
     what = golden.approval_publishes(rv, rule_id)
     if what is None:
         return {"publishes": False, "rule_id": rule_id}
-    base = {"publishes": what["writes"], "rule_id": rule_id, "property": what["property"], "column": what["column"],
+    base = approval_summary(st, ctx, rv, rule_id, what)
+    if not what["writes"]:
+        return base
+    v = column_values(st, ctx, rv, what["property"])
+    return base | v | {"rule": v["values"] - v["human"]}
+
+
+def approval_summary(st, ctx, rv, rule_id: str, what: dict) -> dict:
+    path = rv.snap.rules[rule_id].get("ctdl_property")
+    return {"publishes": what["writes"], "rule_id": rule_id, "property": what["property"], "column": what["column"],
             "golden": what["golden"], "ruleset_version": what["ruleset_version"], "creates": what["creates"],
             "now": golden.columns_of(what["now"]), "after": golden.columns_of(what["after"]),
             "where": f"{golden.default_target(ctx).rstrip('/')}/"
-                     f"{golden.version_root(ctx, what['ruleset_version']).rsplit('/', 1)[0]}/"}
-    path = rv.snap.rules[rule_id].get("ctdl_property")
-    base |= {"path_shown": properties.shown(path) or None, "xtra_extracts": _xtra_extracts(st, ctx, path)}
-    if not what["writes"]:
-        return base
-    key = ("approve-values", ctx.catalog, ctx.cls, rv.snap.ext, LOADER.log(ctx).offset, what["property"])
+                     f"{golden.version_root(ctx, what['ruleset_version']).rsplit('/', 1)[0]}/",
+            "path_shown": properties.shown(path) or None, "xtra_extracts": _xtra_extracts(st, ctx, path)}
+
+
+def column_values(st, ctx, rv, prop: str) -> dict:
+    """The column's values once published, and how many are human-reviewed. Kept until the annotation log moves."""
+    key = ("approve-values", ctx.catalog, ctx.cls, rv.snap.ext, LOADER.log(ctx).offset, prop)
     if key not in st.cache:
-        files = golden.trees(golden.plan(rv, {what["property"]})["pages"])[golden.RULE_MATCHED]
-        mine = [f for recs in files.values() for r in recs for f in r["fields"] if f["property"] == what["property"]]
+        files = golden.trees(golden.plan(rv, {prop})["pages"])[golden.RULE_MATCHED]
+        mine = [f for recs in files.values() for r in recs for f in r["fields"] if f["property"] == prop]
         st.cache[key] = {"values": len(mine), "human": sum(f["approval"] == "human" for f in mine)}
-    v = st.cache[key]
-    return base | v | {"rule": v["values"] - v["human"]}
+    return st.cache[key]
 
 
 def _xtra_extracts(st, ctx, path: str | None) -> bool | None:
@@ -185,13 +202,17 @@ def _xtra_extracts(st, ctx, path: str | None) -> bool | None:
         return None
     key = ("emitted", ctx.catalog, ctx.crawl, outs[-1]["id"])
     if key not in st.cache:
-        try:
-            _, store = scores.resolve_output(ctx, outs[-1]["id"], log=lambda *a: None)
-            st.cache[key] = scores.emitted(store)
-        except Exception:  # noqa: BLE001 - an unreadable output: the dialog just doesn't say
-            st.cache[key] = None
+        st.cache[key] = emitted_paths(ctx, outs[-1]["id"])
     got = st.cache[key]
     return None if got is None else path in got
+
+
+def emitted_paths(ctx, output_id: str):
+    try:
+        _, store = scores.resolve_output(ctx, output_id, log=lambda *a: None)
+        return scores.emitted(store)
+    except Exception:  # noqa: BLE001 - an unreadable output: the dialog just doesn't say
+        return None
 
 
 # --- samples of what a version wrote ---------------------------------------------------------------------------
@@ -275,3 +296,9 @@ def version_table(request: Request, catalog: str, vid: str, table: str, q: str =
     return {"columns": columns, "total": total, "matched": len(rows), "offset": offset,
             "rows": [[r.get(c) for c in columns] for r in rows[offset:offset + limit]]}
 
+
+def _table(ctx, path: str) -> list[dict]:
+    """A version's Parquet file, read again each time (publishing rewrites it)."""
+    import pyarrow.parquet as pq
+
+    return pq.read_table(ctx.root.local_path(path, mutable=True)).to_pylist()

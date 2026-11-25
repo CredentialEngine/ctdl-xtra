@@ -1,0 +1,6 @@
+# Functions still over 15 lines (tests/test_function_length.py). This list may only shrink: split a function and
+# take it off; a new long function fails the test. v2engine.py is the old v2 engine, kept unchanged for
+# test_engine_equivalence.py, so its long functions stay.
+golden_datasets/v2engine.py::_run_field_rule
+golden_datasets/v2engine.py::extract_from_text
+golden_datasets/v2engine.py::run_page

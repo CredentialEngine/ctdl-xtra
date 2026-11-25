@@ -27,61 +27,22 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-def _iso(t: datetime) -> str:
-    return t.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def lock_path(catalog: str, cls: str) -> str:
-    """The publish lock of one catalog and class (approved item 15: each catalog and class has its own)."""
-    return f"{layout.class_dir(catalog, cls)}/publish.json"
-
-
 class LockBusy(Exception):
     def __init__(self, holder: dict):
         super().__init__(f"{who(holder)} is publishing")
         self.holder = holder
 
 
-def who(holder: dict | None) -> str:
-    h = holder or {}
-    return f"run {h['run']}" if h.get("run") else (h.get("by") or "someone")
-
-
+# =====================================================================================================
+# The publish lock
+# =====================================================================================================
 @contextlib.contextmanager
 def publish_lock(ctx: Ctx, run: str | None, by: str, wait_s: float | None = None, say=print,
                  sleep=time.sleep, clock=_now):
     """Hold the catalog's publish lock for the block. Waits for another holder (saying so every 10 s), up to `wait_s`
     seconds (None = until its lock expires); raises LockBusy after that."""
     root, path = ctx.root, lock_path(ctx.catalog, ctx.cls)
-    t0 = time.monotonic()
-    said = -10.0
-    while True:
-        st = root.stat(path)
-        doc = None
-        if st is not None:
-            try:
-                doc = root.read_json(path)
-            except FileNotFoundError:
-                st = None
-        t = clock()
-        held = doc and doc.get("holder") and doc.get("expires_at") and \
-            datetime.strptime(doc["expires_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC) > t
-        if not held:
-            mine = {"holder": {"run": run, "by": by, "since": _iso(t)},
-                    "expires_at": _iso(t + timedelta(minutes=LOCK_MINUTES))}
-            try:
-                etag = root.write_json(path, mine, if_none_match=True) if st is None \
-                    else root.write_json(path, mine, if_match=st.etag)
-                break
-            except ConflictError:
-                continue
-        waited = time.monotonic() - t0
-        if wait_s is not None and waited >= wait_s:
-            raise LockBusy(doc["holder"])
-        if waited - said >= 10:
-            say(f"waiting for {who(doc['holder'])} to finish publishing ({int(waited)} s)")
-            said = waited
-        sleep(0.5)
+    etag = _take_lock(root, path, run, by, wait_s, say, sleep, clock)
     try:
         yield
     finally:
@@ -89,9 +50,82 @@ def publish_lock(ctx: Ctx, run: str | None, by: str, wait_s: float | None = None
             root.write_json(path, {"holder": None, "expires_at": None, "released_at": _iso(clock())}, if_match=etag)
 
 
+def lock_path(catalog: str, cls: str) -> str:
+    """The publish lock of one catalog and class (approved item 15: each catalog and class has its own)."""
+    return f"{layout.class_dir(catalog, cls)}/publish.json"
+
+
+def who(holder: dict | None) -> str:
+    h = holder or {}
+    return f"run {h['run']}" if h.get("run") else (h.get("by") or "someone")
+
+
+def _take_lock(root, path: str, run: str | None, by: str, wait_s: float | None, say, sleep, clock):
+    """The lock's ETag once this publish holds it."""
+    t0 = time.monotonic()
+    said = -10.0
+    while True:
+        st, doc = _read_lock(root, path)
+        t = clock()
+        if not _is_held(doc, t):
+            with contextlib.suppress(ConflictError):
+                return _write_lock(root, path, st, run, by, t)
+            continue
+        said = _wait_for_holder(doc, t0, said, wait_s, say)
+        sleep(0.5)
+
+
+def _read_lock(root, path: str):
+    st = root.stat(path)
+    doc = None
+    if st is not None:
+        try:
+            doc = root.read_json(path)
+        except FileNotFoundError:
+            st = None
+    return st, doc
+
+
+def _is_held(doc: dict | None, t: datetime) -> bool:
+    return bool(doc and doc.get("holder") and doc.get("expires_at") and
+                datetime.strptime(doc["expires_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC) > t)
+
+
+def _write_lock(root, path: str, st, run: str | None, by: str, t: datetime):
+    mine = {"holder": {"run": run, "by": by, "since": _iso(t)},
+            "expires_at": _iso(t + timedelta(minutes=LOCK_MINUTES))}
+    if st is None:
+        return root.write_json(path, mine, if_none_match=True)
+    return root.write_json(path, mine, if_match=st.etag)
+
+
+def _wait_for_holder(doc: dict, t0: float, said: float, wait_s: float | None, say) -> float:
+    """Raises LockBusy once `wait_s` is up; says who holds the lock every 10 s. When it last said so."""
+    waited = time.monotonic() - t0
+    if wait_s is not None and waited >= wait_s:
+        raise LockBusy(doc["holder"])
+    if waited - said >= 10:
+        say(f"waiting for {who(doc['holder'])} to finish publishing ({int(waited)} s)")
+        return waited
+    return said
+
+
 # =====================================================================================================
 # Rebase or refuse
 # =====================================================================================================
+def rebase(ctx: Ctx, doc: dict, names: dict[str, str]) -> tuple[dict, str | None]:
+    """The draft to publish on top of the latest version, and the line saying it was rebased (None when it was
+    drafted from the latest). Raises UserError naming the overlap; nothing is written then."""
+    base, latest = doc.get("base_ruleset"), ctx.latest_ruleset() if ctx.ruleset_versions() else 0
+    if not base or not latest or base >= latest:
+        return doc, None
+    m, t = mine(ctx, doc, base), theirs(ctx, base, latest)
+    _refuse_overlap([rid for rid in m if rid in t], t, latest, names)
+    keep = set(m)
+    doc = {**doc, "base_ruleset": latest, "rules": [r for r in doc.get("rules", []) if r.get("rule_id") in keep]}
+    return doc, f"Rebased on v{latest} ({_meanwhile(t, names)})"
+
+
 def mine(ctx: Ctx, doc: dict, base: int) -> list[str]:
     """The draft's rules whose definition differs from the base version's (or that are new)."""
     _, rules = ctx.ruleset_rules(base)
@@ -121,57 +155,51 @@ def by_words(rs: dict) -> str:
     return rs.get("published_by") or "someone"
 
 
-def rebase(ctx: Ctx, doc: dict, names: dict[str, str]) -> tuple[dict, str | None]:
-    """The draft to publish on top of the latest version, and the line saying it was rebased (None when it was
-    drafted from the latest). Raises UserError naming the overlap; nothing is written then."""
-    base, latest = doc.get("base_ruleset"), ctx.latest_ruleset() if ctx.ruleset_versions() else 0
-    if not base or not latest or base >= latest:
-        return doc, None
-    m, t = mine(ctx, doc, base), theirs(ctx, base, latest)
-    overlap = [rid for rid in m if rid in t]
+def _refuse_overlap(overlap: list[str], t: dict[str, dict], latest: int, names: dict[str, str]) -> None:
     if overlap:
         raise UserError(" ".join(
             f"{names.get(rid, rid)} was also changed in v{t[rid]['version']} by {t[rid]['by']}." for rid in overlap)
             + f" Draft it again from v{latest} (`rule draft`) and redo your change.")
-    keep = set(m)
-    doc = {**doc, "base_ruleset": latest, "rules": [r for r in doc.get("rules", []) if r.get("rule_id") in keep]}
+
+
+def _meanwhile(t: dict[str, dict], names: dict[str, str]) -> str:
     meanwhile: dict[str, list[str]] = {}
     for rid, x in t.items():
         meanwhile.setdefault(x["by"], []).append(names.get(rid, rid))
-    said = "; ".join(f"{by} published {', '.join(sorted(rs))} meanwhile" for by, rs in meanwhile.items())
-    return doc, f"Rebased on v{latest} ({said})"
+    return "; ".join(f"{by} published {', '.join(sorted(rs))} meanwhile" for by, rs in meanwhile.items())
 
 
 # =====================================================================================================
 # Revert
 # =====================================================================================================
+def revert(ctx: Ctx, version: int, by: str, say=print, wait_s: float | None = None) -> dict:
+    """Publish one new version with every rule `version` changed back to its previous version. Runs the whole
+    suite (and says what moved) but publishes either way: a person chose to go back. Raises UserError when a later
+    version changed one of those rules again."""
+    with publish_lock(ctx, None, by, wait_s=wait_s, say=say):
+        ctx.invalidate()
+        plan = revert_plan(ctx, version)
+        if plan["blocked"]:
+            raise UserError(plan["blocked"])
+        p, names = _revert_proposal(ctx, plan)
+        ev = _evaluate_revert(ctx, p)
+        doc, ext = _publish_revert(ctx, plan, p, ev, names, by)
+    s = ev["suite"]
+    return {"version": doc["version"], "reverted": version, "extraction": ext,
+            "rules": [r | {"name": names.get(r["rule"], r["rule"])} for r in plan["rules"]],
+            "suite": {k: s[k] for k in ("rules", "golden", "now_right", "got_worse")} | {"line": ev["suite_lines"][0]}}
+
+
 def revert_plan(ctx: Ctx, version: int) -> dict:
     """What reverting `version` would publish: {version, parent, next_version, rules: [{rule, from_version,
     to_version}], blocked}. `blocked` names a rule a later version changed again (then nothing can be written)."""
     versions = ctx.ruleset_versions()
     if version not in versions:
         raise FileNotFoundError(f"no ruleset v{version}")
-    rs = ctx.ruleset(version)
-    parent = rs.get("parent_version")
-    if not parent:
-        raise UserError(f"v{version} is the first ruleset: there is nothing before it to go back to")
-    changed = list(rs.get("changed_rules") or [])
-    if not changed:
-        raise UserError(f"v{version} changed no rule")
+    parent, changed = _revert_target(version, ctx.ruleset(version))
     _, now_rules = ctx.ruleset_rules(version)
     _, before = ctx.ruleset_rules(parent)
-    blocked = None
-    for v in versions:
-        if v > version:
-            again = [rid for rid in changed if rid in (ctx.ruleset(v).get("changed_rules") or [])]
-            if again:
-                from .report import rule_names
-
-                names = rule_names({**before, **now_rules})
-                blocked = (f"{' and '.join(names.get(r, r) for r in again)} "
-                           f"{'was' if len(again) == 1 else 'were'} changed again in v{v}; revert v{v} first, "
-                           "or change it by hand")
-                break
+    blocked = _blocked_by_later(ctx, versions, version, changed, {**before, **now_rules})
     rules = [{"rule": rid, "from_version": (now_rules.get(rid) or {}).get("version"),
               "to_version": (before.get(rid) or {}).get("version")} for rid in sorted(changed)]
     return {"version": version, "parent": parent, "next_version": versions[-1] + 1, "rules": rules,
@@ -185,50 +213,86 @@ def revert_text(plan: dict, names: dict[str, str]) -> str:
             f"{'it was' if len(rules) == 1 else 'they were'} in v{plan['parent']}.")
 
 
-def revert(ctx: Ctx, version: int, by: str, say=print, wait_s: float | None = None) -> dict:
-    """Publish one new version with every rule `version` changed back to its previous version. Runs the whole
-    suite (and says what moved) but publishes either way: a person chose to go back. Raises UserError when a later
-    version changed one of those rules again."""
-    from . import extract, rulesets
-    from .check import check_before_write
-    from .loop import evaluate
+def _revert_proposal(ctx: Ctx, plan: dict) -> tuple[dict, dict[str, str]]:
+    """The proposal `evaluate` scores: the latest rules with the reverted ones back; and the rule names."""
     from .report import rule_names
 
-    with publish_lock(ctx, None, by, wait_s=wait_s, say=say):
-        ctx.invalidate()
-        plan = revert_plan(ctx, version)
-        if plan["blocked"]:
-            raise UserError(plan["blocked"])
-        latest = ctx.latest_ruleset()
-        rs_latest, latest_rules = ctx.ruleset_rules(latest)
-        _, before = ctx.ruleset_rules(plan["parent"])
-        rules = dict(latest_rules)
-        for r in plan["rules"]:
-            if r["rule"] in before:
-                rules[r["rule"]] = before[r["rule"]]
-            else:
-                rules.pop(r["rule"], None)  # the version added it
-        names = rule_names({**latest_rules, **before})
-        changed = sorted(rid for rid in set(rules) | set(latest_rules)
-                         if rid not in rules or rid not in latest_rules
-                         or rules[rid]["content_hash"] != latest_rules[rid]["content_hash"])
-        p = {"latest": latest, "ruleset": rs_latest, "base": latest_rules,
-             "drafts": {rid: rules[rid] for rid in changed if rid in rules}, "rules": rules,
-             "settings": rs_latest["settings"], "changed": changed, "settings_changed": False,
-             "example_failures": []}
-        ev = evaluate(ctx, p)
-        check_before_write(ctx, {"settings": p["settings"]}, rules, ev["result"]["tables"])
-        listed = ", ".join(names.get(r["rule"], r["rule"]) for r in plan["rules"])
-        doc = rulesets.publish(ctx, rules, p["settings"], f"Revert v{version}: {listed} back to v{plan['parent']}",
-                               by, extra={"reverts": version})
-        if doc is None:
-            raise UserError(f"nothing to revert: the latest version already has v{plan['parent']}'s rules")
-        ext = extract.next_extraction_id(ctx, doc["version"], again=False)
-        extract.write_extraction(ctx, ext, doc["version"], ev["parent_extraction"], ev["result"], by)
-    s = ev["suite"]
-    return {"version": doc["version"], "reverted": version, "extraction": ext,
-            "rules": [r | {"name": names.get(r["rule"], r["rule"])} for r in plan["rules"]],
-            "suite": {k: s[k] for k in ("rules", "golden", "now_right", "got_worse")} | {"line": ev["suite_lines"][0]}}
+    latest = ctx.latest_ruleset()
+    rs_latest, latest_rules = ctx.ruleset_rules(latest)
+    _, before = ctx.ruleset_rules(plan["parent"])
+    rules = _reverted_rules(latest_rules, before, plan["rules"])
+    changed = _changed_rules(rules, latest_rules)
+    p = {"latest": latest, "ruleset": rs_latest, "base": latest_rules,
+         "drafts": {rid: rules[rid] for rid in changed if rid in rules}, "rules": rules,
+         "settings": rs_latest["settings"], "changed": changed, "settings_changed": False,
+         "example_failures": []}
+    return p, rule_names({**latest_rules, **before})
+
+
+def _evaluate_revert(ctx: Ctx, p: dict) -> dict:
+    from .check import check_before_write
+    from .loop import evaluate
+
+    ev = evaluate(ctx, p)
+    check_before_write(ctx, {"settings": p["settings"]}, p["rules"], ev["result"]["tables"])
+    return ev
+
+
+def _publish_revert(ctx: Ctx, plan: dict, p: dict, ev: dict, names: dict[str, str], by: str):
+    from . import extract, rulesets
+
+    version = plan["version"]
+    listed = ", ".join(names.get(r["rule"], r["rule"]) for r in plan["rules"])
+    doc = rulesets.publish(ctx, p["rules"], p["settings"], f"Revert v{version}: {listed} back to v{plan['parent']}",
+                           by, extra={"reverts": version})
+    if doc is None:
+        raise UserError(f"nothing to revert: the latest version already has v{plan['parent']}'s rules")
+    ext = extract.next_extraction_id(ctx, doc["version"], again=False)
+    extract.write_extraction(ctx, ext, doc["version"], ev["parent_extraction"], ev["result"], by)
+    return doc, ext
+
+
+def _revert_target(version: int, rs: dict) -> tuple[int, list[str]]:
+    """The version to go back to and the rules `version` changed."""
+    parent = rs.get("parent_version")
+    if not parent:
+        raise UserError(f"v{version} is the first ruleset: there is nothing before it to go back to")
+    changed = list(rs.get("changed_rules") or [])
+    if not changed:
+        raise UserError(f"v{version} changed no rule")
+    return parent, changed
+
+
+def _blocked_by_later(ctx: Ctx, versions: list[int], version: int, changed: list[str],
+                      rules: dict[str, dict]) -> str | None:
+    for v in versions:
+        if v <= version:
+            continue
+        again = [rid for rid in changed if rid in (ctx.ruleset(v).get("changed_rules") or [])]
+        if again:
+            from .report import rule_names
+
+            names = rule_names(rules)
+            return (f"{' and '.join(names.get(r, r) for r in again)} "
+                    f"{'was' if len(again) == 1 else 'were'} changed again in v{v}; revert v{v} first, "
+                    "or change it by hand")
+    return None
+
+
+def _reverted_rules(latest_rules: dict[str, dict], before: dict[str, dict], plan_rules: list[dict]) -> dict:
+    rules = dict(latest_rules)
+    for r in plan_rules:
+        if r["rule"] in before:
+            rules[r["rule"]] = before[r["rule"]]
+        else:
+            rules.pop(r["rule"], None)  # the version added it
+    return rules
+
+
+def _changed_rules(rules: dict[str, dict], latest_rules: dict[str, dict]) -> list[str]:
+    return sorted(rid for rid in set(rules) | set(latest_rules)
+                  if rid not in rules or rid not in latest_rules
+                  or rules[rid]["content_hash"] != latest_rules[rid]["content_hash"])
 
 
 # =====================================================================================================
@@ -248,3 +312,7 @@ def downstream(rules: dict[str, dict], rule_id: str) -> list[str]:
                 seen.add(r)
                 todo.append(r)
     return sorted(seen, key=lambda r: (model.KIND_ORDER[rules[r]["kind"]], r))
+
+
+def _iso(t: datetime) -> str:
+    return t.strftime("%Y-%m-%dT%H:%M:%SZ")

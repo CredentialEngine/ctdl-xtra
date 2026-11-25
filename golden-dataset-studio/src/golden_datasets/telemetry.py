@@ -35,11 +35,14 @@ from __future__ import annotations
 
 import contextlib
 import contextvars
+import gc
+import json
 import os
 import sys
 import threading
 import time
 from collections.abc import Callable, Iterator
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs
 
@@ -101,31 +104,45 @@ def init(exporter=None) -> bool:
         return True
     if exporter is None and not configured():
         return False
-    try:
-        from opentelemetry import trace
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-    except ImportError:
+    if not _otel_installed():
         print("telemetry: OTEL_EXPORTER_OTLP_* is set but the otel extra isn't installed (uv sync --extra otel); "
               "no traces", file=sys.stderr)
         return False
-    from . import __version__
-
     os.environ.setdefault("OTEL_SEMCONV_STABILITY_OPT_IN", "http")  # http.request.method, url.path... (stable names)
-    provider = TracerProvider(resource=resource())  # sampler: OTEL_TRACES_SAMPLER, default parent-based always-on
-    if exporter is None:
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-
-        provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
-    else:
-        provider.add_span_processor(SimpleSpanProcessor(exporter))
-    trace.set_tracer_provider(provider)
-    _tracer = trace.get_tracer("golden_datasets", __version__)
+    _tracer = _start_tracer(exporter)
     _enabled = True
-    import gc
-
     gc.callbacks.append(_on_gc)
     return True
+
+
+def _otel_installed() -> bool:
+    try:
+        import opentelemetry.sdk.trace.export  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def _start_tracer(exporter):
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+
+    from . import __version__
+
+    provider = TracerProvider(resource=resource())  # sampler: OTEL_TRACES_SAMPLER, default parent-based always-on
+    provider.add_span_processor(_span_processor(exporter))
+    trace.set_tracer_provider(provider)
+    return trace.get_tracer("golden_datasets", __version__)
+
+
+def _span_processor(exporter):
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
+
+    if exporter is not None:
+        return SimpleSpanProcessor(exporter)
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+    return BatchSpanProcessor(OTLPSpanExporter())
 
 
 def resource():
@@ -181,9 +198,6 @@ def browser_page(index_html) -> str | None:
     cfg = browser_config()
     if cfg is None:
         return None
-    import json
-    from pathlib import Path
-
     html = Path(index_html).read_text(encoding="utf-8")
     data = json.dumps(cfg).replace("<", "\\u003c")  # nothing in it can close the script element
     tag = f'<script id="otel-config" type="application/json">{data}</script>'
@@ -336,32 +350,46 @@ def storage_op(kind: str, call_span: bool = True):
         def inner(self, *a, **kw):
             if not _enabled or _counters.get() is None:
                 return fn(self, *a, **kw)
-            started = time.perf_counter()
-            where = "azure" if self.uri.startswith("azure://") else "local"
-            data = a[1] if len(a) > 1 else kw.get("data")
-            cm = (_client_span(f"azure.blob.{kind}", _azure_attrs(self, kind, a[0] if a else kw.get("path", kw.get("prefix", ""))))
-                  if where == "azure" and call_span else contextlib.nullcontext(None))
-            with cm as client:
-                try:
-                    out = fn(self, *a, **kw)
-                finally:  # a missing file (FileNotFoundError) still took a round trip
-                    elapsed_ms = (time.perf_counter() - started) * 1000
-                    count(f"stats.storage.{where}.{kind}s")
-                    count(f"stats.storage.{where}.duration_ms", elapsed_ms)
-                if kind == "read" and isinstance(out, bytes | bytearray):
-                    count(f"stats.storage.{where}.bytes_read", len(out))
-                    if client is not None:
-                        client.set_attribute("ce.storage.bytes", len(out))
-                if kind == "write" and isinstance(data, bytes | bytearray):
-                    count(f"stats.storage.{where}.bytes_written", len(data))
-                    if client is not None:
-                        client.set_attribute("ce.storage.bytes", len(data))
-                if kind == "list" and isinstance(out, list) and client is not None:
-                    client.set_attribute("ce.storage.items", len(out))
-            return out
+            return _measured_call(kind, call_span, fn, self, a, kw)
         inner.__name__, inner.__doc__, inner.__wrapped__ = fn.__name__, fn.__doc__, fn
         return inner
     return wrap
+
+
+def _measured_call(kind: str, call_span: bool, fn: Callable, root, args: tuple, kwargs: dict):
+    started = time.perf_counter()
+    where = "azure" if root.uri.startswith("azure://") else "local"
+    with _storage_span(root, kind, where, call_span, args, kwargs) as client:
+        try:
+            out = fn(root, *args, **kwargs)
+        finally:  # a missing file (FileNotFoundError) still took a round trip
+            count(f"stats.storage.{where}.{kind}s")
+            count(f"stats.storage.{where}.duration_ms", (time.perf_counter() - started) * 1000)
+        _count_size(kind, where, client, out, args[1] if len(args) > 1 else kwargs.get("data"))
+    return out
+
+
+def _storage_span(root, kind: str, where: str, call_span: bool, args: tuple, kwargs: dict):
+    if where != "azure" or not call_span:
+        return contextlib.nullcontext(None)
+    path = args[0] if args else kwargs.get("path", kwargs.get("prefix", ""))
+    return _client_span(f"azure.blob.{kind}", _azure_attrs(root, kind, path))
+
+
+def _count_size(kind: str, where: str, client, out, data) -> None:
+    """Bytes read or written on the request's counters and the call's span; items listed on the span."""
+    if kind == "read" and isinstance(out, bytes | bytearray):
+        _count_bytes(f"stats.storage.{where}.bytes_read", len(out), client)
+    if kind == "write" and isinstance(data, bytes | bytearray):
+        _count_bytes(f"stats.storage.{where}.bytes_written", len(data), client)
+    if kind == "list" and isinstance(out, list) and client is not None:
+        client.set_attribute("ce.storage.items", len(out))
+
+
+def _count_bytes(name: str, size: int, client) -> None:
+    count(name, size)
+    if client is not None:
+        client.set_attribute("ce.storage.bytes", size)
 
 
 # -- what a request competed for: CPU, memory, other requests, garbage collection ---------------------------------
@@ -460,50 +488,63 @@ class WideSpanMiddleware:
         if scope["type"] != "http" or not _enabled:
             await self.app(scope, receive, send)
             return
+        request = _WideRequest(scope, send)
+        try:
+            await self.app(scope, receive, request.send)
+        finally:
+            request.finish()
+
+
+class _WideRequest:
+    """One request's wide attributes, gathered while it runs and set on its server span as the last chunk goes out."""
+
+    def __init__(self, scope, send):
         from opentelemetry import trace
 
-        server_span = trace.get_current_span()
-        who = _who(scope)
-        counters: dict = {}
-        t1 = _counters.set(counters)
-        t2 = _inherited.set(who)
-        state = {"status": 0, "size": 0, "error_body": b"", "flushed": False}
-        process = Resources.start()
+        self.scope, self._send = scope, send
+        self.server_span = trace.get_current_span()
+        self.who = _who(scope)
+        self.counters: dict = {}
+        self._tokens = (_counters.set(self.counters), _inherited.set(self.who))
+        self.status, self.size, self.error_body, self.flushed = 0, 0, b"", False
+        self.process = Resources.start()
 
-        def flush() -> None:
-            # the instrumentation ends the server span as it sends the last body chunk: set everything before that
-            if state["flushed"] or not server_span.is_recording():
-                return
-            state["flushed"] = True
-            who_asked = who                          # user.id, session.id, ce.page: from the browser's baggage
-            what_they_asked = _what(scope)           # ce.catalog, ce.rule.id, ce.query.q...: from the URL
-            storage_work = _storage(counters)        # ce.stats.storage.*, ce.stats.gc.*...: the request's counters
-            error_detail = _error(state)             # ce.error.detail, on a 4xx/5xx
-            competed_for = process.end()             # ce.process.*, ce.http.inflight*: CPU, memory, other requests
-            for key, value in {**who_asked, **what_they_asked, **storage_work, **error_detail, **competed_for}.items():
-                server_span.set_attribute(key, value)
-            server_span.set_attribute("http.response.body.size", state["size"])
+    async def send(self, message) -> None:
+        if message["type"] == "http.response.start":
+            self.status = message["status"]
+        elif message["type"] == "http.response.body":
+            self._note_body(message)
+        await self._send(message)
 
-        async def send_wrapper(message):
-            if message["type"] == "http.response.start":
-                state["status"] = message["status"]
-            elif message["type"] == "http.response.body":
-                body = message.get("body", b"")
-                state["size"] += len(body)
-                if state["status"] >= 400 and len(state["error_body"]) < 2048:
-                    state["error_body"] += body[:2048]
-                is_last_chunk = not message.get("more_body", False)
-                if is_last_chunk:
-                    flush()
-            await send(message)
+    def finish(self) -> None:
+        self.flush()  # no response was sent (an exception): the span is still open
+        self.process.close()
+        _counters.reset(self._tokens[0])
+        _inherited.reset(self._tokens[1])
 
-        try:
-            await self.app(scope, receive, send_wrapper)
-        finally:
-            flush()  # no response was sent (an exception): the span is still open
-            process.close()
-            _counters.reset(t1)
-            _inherited.reset(t2)
+    def flush(self) -> None:
+        # the instrumentation ends the server span as it sends the last body chunk: set everything before that
+        if self.flushed or not self.server_span.is_recording():
+            return
+        self.flushed = True
+        for key, value in self._attributes().items():
+            self.server_span.set_attribute(key, value)
+        self.server_span.set_attribute("http.response.body.size", self.size)
+
+    def _attributes(self) -> dict:
+        return {**self.who,                                  # user.id, session.id, ce.page: the browser's baggage
+                **_what(self.scope),                         # ce.catalog, ce.rule.id, ce.query.q...: the URL
+                **_storage(self.counters),                   # ce.stats.storage.*, ce.stats.gc.*: the counters
+                **_error(self.status, self.error_body),      # ce.error.detail, on a 4xx/5xx
+                **self.process.end()}                        # ce.process.*, ce.http.inflight*: what it competed for
+
+    def _note_body(self, message) -> None:
+        body = message.get("body", b"")
+        self.size += len(body)
+        if self.status >= 400 and len(self.error_body) < 2048:
+            self.error_body += body[:2048]
+        if not message.get("more_body", False):  # the last chunk
+            self.flush()
 
 
 def _who(scope) -> dict:
@@ -522,29 +563,40 @@ def _who(scope) -> dict:
 
 
 def _what(scope) -> dict:
-    from .catalogs import info, resolve
-
-    out: dict = {}
+    """What the request is about: its catalog, path parameters and a few query parameters, and its type."""
     params = scope.get("path_params") or {}
-    if params.get("catalog"):
-        folder = resolve(params["catalog"])
-        meta = info(folder)
-        out.update({"ce.catalog.folder": folder, "ce.catalog": meta["short"], "ce.catalog.platform": meta["platform"]})
-    for k, v in params.items():
-        if k in PATH_PARAMS:
-            out[PATH_PARAMS[k]] = str(v)[:MAX_VALUE]
-    qs = parse_qs(scope.get("query_string", b"").decode("latin-1"))
-    for k, attr in QUERY_PARAMS.items():
-        if qs.get(k) and attr not in out:
-            out[attr] = qs[k][0][:MAX_VALUE]
+    out = _catalog_attributes(params.get("catalog"))
+    out.update({PATH_PARAMS[k]: str(v)[:MAX_VALUE] for k, v in params.items() if k in PATH_PARAMS})
+    _add_query_attributes(out, scope)
     if params.get("catalog") and "ce.class" not in out:  # a catalog's routes serve Course unless ?class= says (ClassParam)
         out["ce.class"] = "course"
-    path = scope.get("path", "")
-    if path.endswith(POLL_ROUTES):
-        out["ce.request.type"] = "poll"
-    elif "sha256" in params:
-        out["ce.request.type"] = "asset"
+    request_type = _request_type(scope.get("path", ""), params)
+    if request_type:
+        out["ce.request.type"] = request_type
     return out
+
+
+def _catalog_attributes(catalog: str | None) -> dict:
+    if not catalog:
+        return {}
+    from .catalogs import info, resolve
+
+    folder = resolve(catalog)
+    meta = info(folder)
+    return {"ce.catalog.folder": folder, "ce.catalog": meta["short"], "ce.catalog.platform": meta["platform"]}
+
+
+def _add_query_attributes(out: dict, scope) -> None:
+    query = parse_qs(scope.get("query_string", b"").decode("latin-1"))
+    for k, attr in QUERY_PARAMS.items():
+        if query.get(k) and attr not in out:
+            out[attr] = query[k][0][:MAX_VALUE]
+
+
+def _request_type(path: str, params: dict) -> str | None:
+    if path.endswith(POLL_ROUTES):
+        return "poll"
+    return "asset" if "sha256" in params else None
 
 
 def _storage(counters: dict) -> dict:
@@ -552,13 +604,11 @@ def _storage(counters: dict) -> dict:
     return {f"ce.{k}": (round(v) if isinstance(v, float) else v) for k, v in counters.items()}
 
 
-def _error(state: dict) -> dict:
-    if state["status"] < 400 or not state["error_body"]:
+def _error(status: int, body: bytes) -> dict:
+    if status < 400 or not body:
         return {}
-    import json
-
     try:
-        detail = json.loads(state["error_body"]).get("detail")
+        detail = json.loads(body).get("detail")
     except (ValueError, AttributeError):
         return {}
     return {"ce.error.detail": str(detail)[:MAX_VALUE]} if detail else {}

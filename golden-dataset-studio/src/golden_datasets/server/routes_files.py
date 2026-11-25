@@ -27,6 +27,9 @@ router = APIRouter(prefix="/api")
 LIST_TTL = 10.0                 # seconds a listing is reused
 TEXT_CAP = 400_000              # characters of a text file shown
 MUTABLE = ("manifest.json", "annotations.jsonl", "/assets/assets.parquet", "/assets/page_assets.parquet")
+#: The Azure tenant the portal links open in (its domain or id); without it the portal may open the wrong
+#: directory and not find the resource. GOLDEN_DATASETS_AZURE_TENANT overrides it.
+DEFAULT_TENANT = "credengine.onmicrosoft.com"
 
 # what each kind of file is, for the reader (first match wins)
 ABOUT = [
@@ -54,56 +57,69 @@ ABOUT = [
 ]
 
 
-@functools.lru_cache(maxsize=8)
-def account_id(account: str) -> str | None:
-    """The storage account's Azure resource id: $GOLDEN_DATASETS_AZURE_ACCOUNT_ID when it names this account (a
-    deployed Studio has no Azure CLI), else from the signed-in Azure CLI (None when neither can say)."""
-    import os
-
-    env = os.environ.get("GOLDEN_DATASETS_AZURE_ACCOUNT_ID", "").strip()
-    if env.lower().endswith(f"/storageaccounts/{account.lower()}"):
-        return env
-    try:
-        r = subprocess.run(["az", "storage", "account", "show", "-n", account, "--query", "id", "-o", "tsv"],
-                           capture_output=True, text=True, timeout=60)
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    return (r.stdout.strip() or None) if r.returncode == 0 else None
+@router.get("/catalogs/{catalog}/files")
+def files(request: Request, catalog: str) -> dict:
+    """The catalog's Studio files on the storage root: the manifest, rules, rulesets, the annotation log, the crawl
+    index, extractions and golden publications (not the saved pages or archived asset files)."""
+    ctx, listed = _listing(request, catalog)
+    links = portal(ctx.root)
+    files = [f | {"portal": links["blob"](f["path"])} for f in listed] if links else listed
+    return {"root": ctx.root.uri, "catalog": ctx.catalog, "crawl": ctx.crawl, "files": files,
+            "portal": {k: v for k, v in links.items() if k != "blob"} if links else None}
 
 
-#: The Azure tenant the portal links open in (its domain or id); without it the portal may open the wrong
-#: directory and not find the resource. GOLDEN_DATASETS_AZURE_TENANT overrides it.
-DEFAULT_TENANT = "credengine.onmicrosoft.com"
+@router.get("/catalogs/{catalog}/files/content")
+def content(request: Request, catalog: str, path: str, offset: int = 0, limit: int = 100, q: str | None = None,
+            newest: bool = True) -> dict:
+    """One listed file. `kind`: `json` (`text`), `jsonl` (`rows` of events; newest first unless `newest=false`),
+    `table` (Parquet: `columns`, `rows`), or `text`. `q` filters events and rows (case-insensitive, any column)."""
+    ctx, listed = _listing(request, catalog)
+    meta = next((f for f in listed if f["path"] == path), None)
+    if meta is None:
+        raise HTTPException(status_code=404, detail=f"{path} is not one of this catalog's Studio files")
+    limit = max(1, min(limit, 500))
+    head = file_head(ctx.root, path, meta)
+    if path.endswith(".parquet"):
+        return {**head, **parquet_page(ctx.root, path, q, offset, limit)}
+    raw = ctx.root.read_bytes(path).decode("utf-8", errors="replace")
+    if path.endswith(".jsonl"):
+        return {**head, **jsonl_page(raw, q, offset, limit, newest)}
+    if path.endswith(".json"):
+        return {**head, **json_text(raw)}
+    return {**head, "kind": "text", "text": raw[:TEXT_CAP], "truncated": len(raw) > TEXT_CAP}
 
 
-def tenant() -> str:
-    import os
-
-    return os.environ.get("GOLDEN_DATASETS_AZURE_TENANT") or DEFAULT_TENANT
+# --- Listing ----------------------------------------------------------------------------------------------------
 
 
-def portal(root) -> dict | None:
-    """Links into the Azure portal (they work for whoever is signed in to Azure): the account's storage browser, and
-    a function from a root-relative path to that blob's page. None for a local root."""
-    account = getattr(root, "account", None)
-    if not account or account == "devstoreaccount1":
-        return None
-    rid = account_id(account)
-    if not rid:
-        return None
-    enc = quote(rid, safe="")
-    container, prefix = root.container_name, root.prefix
-    base = f"https://portal.azure.com/#@{tenant()}"
+def _listing(request: Request, catalog: str) -> tuple[object, list[dict]]:
+    st = studio(request)
+    ctx = st.ctx(catalog)
+    key = ("files", ctx.catalog, ctx.cls, ctx.crawl)
+    hit = st.cache.get(key)
+    if hit and time.monotonic() - hit[0] < LIST_TTL:
+        return ctx, hit[1]
+    files = [{"path": p, "size": n, "group": group(p, ctx.catalog), "about": about(p)}
+             for p, n in sorted(studio_file_sizes(ctx).items()) if is_listed(p)]
+    st.cache[key] = (time.monotonic(), files)
+    return ctx, files
 
-    def blob(path: str) -> str:
-        name = f"{prefix}/{path}" if prefix else path
-        return (f"{base}/view/Microsoft_Azure_Storage/BlobPropertiesBladeV2/storageAccountId/{enc}"
-                f"/path/{quote(f'{container}/{name}', safe='')}/isDeleted~/false/tabToload~/0")
 
-    return {"browser": f"{base}/resource{rid}/storagebrowser",
-            "container_url": f"{base}/view/Microsoft_Azure_Storage/ContainerMenuBlade/~/overview/storageAccountId/{enc}"
-                             f"/path/{quote(container, safe='')}",
-            "container": container, "prefix": prefix, "blob": blob}
+def studio_file_sizes(ctx) -> dict[str, int]:
+    sizes: dict[str, int] = {}
+    for prefix in (layout.class_dir(ctx.catalog, ctx.cls), layout.crawl_dir(ctx.catalog, ctx.crawl)):
+        try:
+            sizes.update(ctx.root.sizes(prefix))
+        except FileNotFoundError:
+            pass
+    s = ctx.root.stat(layout.MANIFEST)
+    if s is not None:
+        sizes[layout.MANIFEST] = s.size
+    return sizes
+
+
+def is_listed(path: str) -> bool:
+    return "/assets/files/" not in path and not path.endswith((".lock", ".etag")) and "/." not in path
 
 
 def about(path: str) -> str:
@@ -127,38 +143,52 @@ def group(path: str, catalog: str) -> str:
     return "Crawl"
 
 
-def _listing(request: Request, catalog: str) -> tuple[object, list[dict]]:
-    st = studio(request)
-    ctx = st.ctx(catalog)
-    key = ("files", ctx.catalog, ctx.cls, ctx.crawl)
-    hit = st.cache.get(key)
-    if hit and time.monotonic() - hit[0] < LIST_TTL:
-        return ctx, hit[1]
-    sizes: dict[str, int] = {}
-    for prefix in (layout.class_dir(ctx.catalog, ctx.cls), layout.crawl_dir(ctx.catalog, ctx.crawl)):
-        try:
-            sizes.update(ctx.root.sizes(prefix))
-        except FileNotFoundError:
-            pass
-    s = ctx.root.stat(layout.MANIFEST)
-    if s is not None:
-        sizes[layout.MANIFEST] = s.size
-    files = [{"path": p, "size": n, "group": group(p, ctx.catalog), "about": about(p)}
-             for p, n in sorted(sizes.items())
-             if "/assets/files/" not in p and not p.endswith((".lock", ".etag")) and "/." not in p]
-    st.cache[key] = (time.monotonic(), files)
-    return ctx, files
+# --- Previews ---------------------------------------------------------------------------------------------------
 
 
-@router.get("/catalogs/{catalog}/files")
-def files(request: Request, catalog: str) -> dict:
-    """The catalog's Studio files on the storage root: the manifest, rules, rulesets, the annotation log, the crawl
-    index, extractions and golden publications (not the saved pages or archived asset files)."""
-    ctx, listed = _listing(request, catalog)
-    links = portal(ctx.root)
-    files = [f | {"portal": links["blob"](f["path"])} for f in listed] if links else listed
-    return {"root": ctx.root.uri, "catalog": ctx.catalog, "crawl": ctx.crawl, "files": files,
-            "portal": {k: v for k, v in links.items() if k != "blob"} if links else None}
+def file_head(root, path: str, meta: dict) -> dict:
+    links = portal(root)
+    return {"path": path, "uri": f"{root.uri}/{path}", "size": meta["size"], "about": meta["about"],
+            "portal": links["blob"](path) if links else None}
+
+
+def parquet_page(root, path: str, q: str | None, offset: int, limit: int) -> dict:
+    import duckdb
+
+    local = str(root.local_path(path, mutable=path.endswith(MUTABLE)))
+    con = duckdb.connect()
+    src = "read_parquet(?)"
+    where, args = ("WHERE CAST(t AS VARCHAR) ILIKE ?", [f"%{q}%"]) if q else ("", [])
+    total = con.execute(f"SELECT count(*) FROM {src}", [local]).fetchone()[0]
+    matched = con.execute(f"SELECT count(*) FROM {src} t {where}", [local, *args]).fetchone()[0] if q else total
+    cur = con.execute(f"SELECT * FROM {src} t {where} LIMIT ? OFFSET ?", [local, *args, limit, offset])
+    cols = [d[0] for d in cur.description]
+    rows = [[_plain(v) for v in r] for r in cur.fetchall()]
+    return {"kind": "table", "columns": cols, "total": total, "matched": matched, "offset": offset, "rows": rows}
+
+
+def jsonl_page(raw: str, q: str | None, offset: int, limit: int, newest: bool) -> dict:
+    lines = [(i + 1, line) for i, line in enumerate(raw.splitlines()) if line.strip()]
+    if newest:
+        lines.reverse()
+    hit = [(n, line) for n, line in lines if not q or q.lower() in line.lower()]
+    rows = [jsonl_row(n, line) for n, line in hit[offset:offset + limit]]
+    return {"kind": "jsonl", "total": len(lines), "matched": len(hit), "offset": offset, "rows": rows}
+
+
+def jsonl_row(n: int, line: str) -> dict:
+    try:
+        return {"line": n, "event": json.loads(line)}
+    except ValueError:
+        return {"line": n, "event": line}
+
+
+def json_text(raw: str) -> dict:
+    try:
+        text = json.dumps(json.loads(raw), indent=2, ensure_ascii=False)
+    except ValueError:
+        text = raw
+    return {"kind": "json", "text": text[:TEXT_CAP], "truncated": len(text) > TEXT_CAP}
 
 
 def _plain(v):
@@ -176,51 +206,52 @@ def _plain(v):
     return v
 
 
-@router.get("/catalogs/{catalog}/files/content")
-def content(request: Request, catalog: str, path: str, offset: int = 0, limit: int = 100, q: str | None = None,
-            newest: bool = True) -> dict:
-    """One listed file. `kind`: `json` (`text`), `jsonl` (`rows` of events; newest first unless `newest=false`),
-    `table` (Parquet: `columns`, `rows`), or `text`. `q` filters events and rows (case-insensitive, any column)."""
-    ctx, listed = _listing(request, catalog)
-    meta = next((f for f in listed if f["path"] == path), None)
-    if meta is None:
-        raise HTTPException(status_code=404, detail=f"{path} is not one of this catalog's Studio files")
-    limit = max(1, min(limit, 500))
-    links = portal(ctx.root)
-    head = {"path": path, "uri": f"{ctx.root.uri}/{path}", "size": meta["size"], "about": meta["about"],
-            "portal": links["blob"](path) if links else None}
-    root = ctx.root
-    if path.endswith(".parquet"):
-        import duckdb
+# --- Azure portal links -----------------------------------------------------------------------------------------
 
-        local = str(root.local_path(path, mutable=path.endswith(MUTABLE)))
-        con = duckdb.connect()
-        src = "read_parquet(?)"
-        where, args = ("WHERE CAST(t AS VARCHAR) ILIKE ?", [f"%{q}%"]) if q else ("", [])
-        total = con.execute(f"SELECT count(*) FROM {src}", [local]).fetchone()[0]
-        matched = con.execute(f"SELECT count(*) FROM {src} t {where}", [local, *args]).fetchone()[0] if q else total
-        cur = con.execute(f"SELECT * FROM {src} t {where} LIMIT ? OFFSET ?", [local, *args, limit, offset])
-        cols = [d[0] for d in cur.description]
-        rows = [[_plain(v) for v in r] for r in cur.fetchall()]
-        return {**head, "kind": "table", "columns": cols, "total": total, "matched": matched, "offset": offset,
-                "rows": rows}
-    raw = root.read_bytes(path).decode("utf-8", errors="replace")
-    if path.endswith(".jsonl"):
-        lines = [(i + 1, line) for i, line in enumerate(raw.splitlines()) if line.strip()]
-        if newest:
-            lines.reverse()
-        hit = [(n, line) for n, line in lines if not q or q.lower() in line.lower()]
-        rows = []
-        for n, line in hit[offset:offset + limit]:
-            try:
-                rows.append({"line": n, "event": json.loads(line)})
-            except ValueError:
-                rows.append({"line": n, "event": line})
-        return {**head, "kind": "jsonl", "total": len(lines), "matched": len(hit), "offset": offset, "rows": rows}
-    if path.endswith(".json"):
-        try:
-            text = json.dumps(json.loads(raw), indent=2, ensure_ascii=False)
-        except ValueError:
-            text = raw
-        return {**head, "kind": "json", "text": text[:TEXT_CAP], "truncated": len(text) > TEXT_CAP}
-    return {**head, "kind": "text", "text": raw[:TEXT_CAP], "truncated": len(raw) > TEXT_CAP}
+
+def portal(root) -> dict | None:
+    """Links into the Azure portal (they work for whoever is signed in to Azure): the account's storage browser, and
+    a function from a root-relative path to that blob's page. None for a local root."""
+    account = getattr(root, "account", None)
+    if not account or account == "devstoreaccount1":
+        return None
+    rid = account_id(account)
+    if not rid:
+        return None
+    enc = quote(rid, safe="")
+    container, prefix = root.container_name, root.prefix
+    base = f"https://portal.azure.com/#@{tenant()}"
+    return {"browser": f"{base}/resource{rid}/storagebrowser",
+            "container_url": f"{base}/view/Microsoft_Azure_Storage/ContainerMenuBlade/~/overview/storageAccountId/{enc}"
+                             f"/path/{quote(container, safe='')}",
+            "container": container, "prefix": prefix,
+            "blob": functools.partial(blob_url, base, enc, container, prefix)}
+
+
+def blob_url(base: str, enc: str, container: str, prefix: str, path: str) -> str:
+    name = f"{prefix}/{path}" if prefix else path
+    return (f"{base}/view/Microsoft_Azure_Storage/BlobPropertiesBladeV2/storageAccountId/{enc}"
+            f"/path/{quote(f'{container}/{name}', safe='')}/isDeleted~/false/tabToload~/0")
+
+
+@functools.lru_cache(maxsize=8)
+def account_id(account: str) -> str | None:
+    """The storage account's Azure resource id: $GOLDEN_DATASETS_AZURE_ACCOUNT_ID when it names this account (a
+    deployed Studio has no Azure CLI), else from the signed-in Azure CLI (None when neither can say)."""
+    import os
+
+    env = os.environ.get("GOLDEN_DATASETS_AZURE_ACCOUNT_ID", "").strip()
+    if env.lower().endswith(f"/storageaccounts/{account.lower()}"):
+        return env
+    try:
+        r = subprocess.run(["az", "storage", "account", "show", "-n", account, "--query", "id", "-o", "tsv"],
+                           capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return (r.stdout.strip() or None) if r.returncode == 0 else None
+
+
+def tenant() -> str:
+    import os
+
+    return os.environ.get("GOLDEN_DATASETS_AZURE_TENANT") or DEFAULT_TENANT

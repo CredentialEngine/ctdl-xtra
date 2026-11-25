@@ -52,21 +52,32 @@ def _brief(doc: dict) -> dict:
 @router.get("/catalogs/{catalog}/extract-outputs")
 def extract_outputs(request: Request, catalog: str) -> dict:
     ctx = studio(request).ctx(catalog)
-    error = None
-    try:
-        entry, new = scores.see_output(ctx)
-        if new and scores.latest_golden(ctx):
-            jobs(request)._quietly(ctx, None, "the Studio", f"a new extract output, {entry['id']}")
-    except UserError as e:
-        error = str(e)
-    by_output: dict[str, list[dict]] = {}
-    for doc in scores.all_scores(ctx):
-        by_output.setdefault(doc["output"]["id"], []).append(_brief(doc))
+    error = _see_new_output(request, ctx)
+    by_output = _scores_by_output(ctx)
     telemetry.set({"ce.evals.outputs": len(scores.outputs(ctx)), "ce.evals.scores": sum(map(len, by_output.values())),
                    "ce.error.detail": error})
     return {"outputs": [{**o, "scores": by_output.get(o["id"], [])} for o in reversed(scores.outputs(ctx))],
             "latest_golden": scores.latest_golden(ctx), "goldens": scores.goldens(ctx), "error": error,
             "running": jobs(request).busy(ctx.catalog)}
+
+
+def _see_new_output(request: Request, ctx) -> str | None:
+    """Registers xtra's latest extract output and, when it is new, scores it against the latest golden dataset.
+    Returns why it couldn't, if it couldn't."""
+    try:
+        entry, new = scores.see_output(ctx)
+        if new and scores.latest_golden(ctx):
+            jobs(request)._quietly(ctx, None, "the Studio", f"a new extract output, {entry['id']}")
+    except UserError as e:
+        return str(e)
+    return None
+
+
+def _scores_by_output(ctx) -> dict[str, list[dict]]:
+    by_output: dict[str, list[dict]] = {}
+    for doc in scores.all_scores(ctx):
+        by_output.setdefault(doc["output"]["id"], []).append(_brief(doc))
+    return by_output
 
 
 @router.get("/catalogs/{catalog}/scores")
@@ -154,24 +165,34 @@ def score_values(request: Request, catalog: str, sid: str, basis: str = "human",
     mine = [r for r in _rows(request, ctx, doc, sid) if r["basis"] == basis]
     in_col = [r for r in mine if (not column or r["column"] == column) and (not subject or r["subject"] == subject)]
     kept = [r for r in in_col if not outcome or r["outcome"] == outcome]
-    by_col: dict[str, list[dict]] = {}
-    for r in mine:
-        by_col.setdefault(r["column"], []).append(r)
-    groups = None
-    if group:
-        g: dict[str, list[dict]] = {}
-        for r in mine:
-            if (outcome and r["outcome"] != outcome) or (group != "column" and column and r["column"] != column) \
-                    or (group != "subject" and subject and r["subject"] != subject):
-                continue
-            g.setdefault(r[group] or "—", []).append(r)
-        groups = sorted(({"name": n, **_counts(rs)} for n, rs in g.items()), key=lambda x: (-x["values"], x["name"]))
-    order = {o: i for i, o in enumerate(("missing", "wrong", "extra", "partial", "unsure", "match"))}  # worst first
-    page = sorted(kept, key=lambda r: (order[r["outcome"]], r["similarity"] if r["similarity"] is not None else 0,
-                                       r["page_stem"], r["entity"]))[offset:offset + PAGE]
     return {"basis": basis, "result": doc["results"].get(basis), "total": _counts(mine),
-            "columns": [{"column": c, **_counts(rs)} for c, rs in sorted(by_col.items())], "outcomes": _counts(in_col),
-            "groups": groups, "rows": {"total": len(kept), "offset": offset, "page": PAGE, "items": page}}
+            "columns": _per_column(mine), "outcomes": _counts(in_col),
+            "groups": _groups(mine, group, column, subject, outcome) if group else None,
+            "rows": {"total": len(kept), "offset": offset, "page": PAGE, "items": _worst_first(kept)[offset:offset + PAGE]}}
+
+
+def _per_column(rows: list[dict]) -> list[dict]:
+    by_col: dict[str, list[dict]] = {}
+    for r in rows:
+        by_col.setdefault(r["column"], []).append(r)
+    return [{"column": c, **_counts(rs)} for c, rs in sorted(by_col.items())]
+
+
+def _groups(rows: list[dict], group: str, column: str | None, subject: str | None, outcome: str | None) -> list[dict]:
+    """The rows narrowed by every filter but the one they're grouped by, in groups, biggest first."""
+    groups: dict[str, list[dict]] = {}
+    for r in rows:
+        if (outcome and r["outcome"] != outcome) or (group != "column" and column and r["column"] != column) \
+                or (group != "subject" and subject and r["subject"] != subject):
+            continue
+        groups.setdefault(r[group] or "—", []).append(r)
+    return sorted(({"name": n, **_counts(rs)} for n, rs in groups.items()), key=lambda x: (-x["values"], x["name"]))
+
+
+def _worst_first(rows: list[dict]) -> list[dict]:
+    order = {o: i for i, o in enumerate(("missing", "wrong", "extra", "partial", "unsure", "match"))}
+    return sorted(rows, key=lambda r: (order[r["outcome"]], r["similarity"] if r["similarity"] is not None else 0,
+                                       r["page_stem"], r["entity"]))
 
 
 @router.get("/catalogs-summary")
@@ -199,19 +220,8 @@ _HOME_LOCKS: dict[str, threading.Lock] = {}
 
 
 def _home_summary(st, cls: str, basis: str) -> dict:
-    out = {}
     entries = st.ctx(next(iter(CATALOGS))).manifest()["catalogs"]
-    for e in entries:
-        k = next((c for c in e["crawls"] if c["crawl"] == e.get("current_crawl")), None)
-        if not (manifest.has_rules(e, cls) and k and manifest.crawl_class(k, cls, create=False)["extractions"]):
-            continue
-        try:
-            ctx = st.ctx(e["catalog"], cls)
-            cols = scores.column_statuses(ctx, st.cache)
-            out[e["catalog"]] = {"columns": cols, "coverage": scores.coverage(cols, cls),
-                                 "score": scores.latest_score(ctx, basis, st.cache)}
-        except UserError as exc:
-            out[e["catalog"]] = {"columns": {}, "coverage": 0, "score": None, "error": str(exc)}
+    out = {e["catalog"]: _catalog_summary(st, e["catalog"], cls, basis) for e in entries if _has_extraction(e, cls)}
     root = st.ctx(next(iter(CATALOGS))).root
     counts = human_reviewed_counts(root, [e["catalog"] for e in entries if manifest.has_rules(e, cls)],
                                    lambda c: st.ctx(c, cls))
@@ -219,6 +229,21 @@ def _home_summary(st, cls: str, basis: str) -> dict:
     return {"basis": basis, "cls": cls, "columns": columns, "labels": scores.column_labels(cls),
             "tiers": scores.column_tiers(cls),
             "required": scores.required_columns(cls), "properties": len(columns), "catalogs": out}
+
+
+def _has_extraction(entry: dict, cls: str) -> bool:
+    """The catalog has the class's rules and an extraction of them in its current crawl."""
+    crawl = next((c for c in entry["crawls"] if c["crawl"] == entry.get("current_crawl")), None)
+    return bool(manifest.has_rules(entry, cls) and crawl and manifest.crawl_class(crawl, cls, create=False)["extractions"])
+
+
+def _catalog_summary(st, catalog: str, cls: str, basis: str) -> dict:
+    try:
+        ctx = st.ctx(catalog, cls)
+        cols = scores.column_statuses(ctx, st.cache)
+        return {"columns": cols, "coverage": scores.coverage(cols, cls), "score": scores.latest_score(ctx, basis, st.cache)}
+    except UserError as exc:
+        return {"columns": {}, "coverage": 0, "score": None, "error": str(exc)}
 
 
 @router.get("/score-history")

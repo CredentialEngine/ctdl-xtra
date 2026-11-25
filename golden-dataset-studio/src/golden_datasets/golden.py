@@ -43,6 +43,9 @@ every golden value back to its match, rule version and annotations, and a Parque
 Every course found on a page is published, course pages and program-page course lines alike. `golden_record_id` is the
 `record_external_identifier`, unless the course pages with that code name different courses (Marshall, WVU): then each distinct
 name gets `record_external_identifier~<n>`, and the Golden screen lists them for confirmation.
+
+The file reads top-down: the commands, then publishing (`publish`, `publish_page`, after an approval or a reset), then
+`plan` (what a publication writes), then the trees, paths and names they use.
 """
 
 from __future__ import annotations
@@ -50,7 +53,10 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -65,425 +71,73 @@ VERSION = re.compile(r"ruleset-v(\d+)$")
 RESCORE_AFTER = timedelta(minutes=5)
 RULE_MATCHED, HUMAN_REVIEWED = "rule-matched", "human-reviewed"
 TREES = (RULE_MATCHED, HUMAN_REVIEWED)
-
-
-def record_approval(fields: list[dict]) -> str:
-    """A record's approval from its fields': human (every value confirmed by a person), rule (none), or mixed."""
-    kinds = {f.get("approval", "rule") for f in fields}
-    return "human" if kinds == {"human"} else "rule" if kinds <= {"rule"} else "mixed"
-
-
-def _record(gid: str, fields: list[dict]) -> dict:
-    return {"golden_record_id": gid, "approval": record_approval(fields), "fields": fields}
-
-
-def _name_key(v: str | None) -> str:
-    return re.sub(r"\s+", " ", v or "").strip().lower()
-
-
-def golden_record_ids(rv: Review) -> tuple[dict[str, str], list[dict]]:
-    """occurrence_key → golden_record_id, and the collisions (codes whose course pages name different courses)."""
-    snap = rv.snap
-    full = properties.record_locator(snap.rules, snap.ctx.cls)
-    names: dict[str, dict[str, str]] = defaultdict(dict)  # record_external_identifier → {normalized name: display name}
-    occ_name = {}
-    for o in snap.occurrences.values():
-        name_rule = snap.name_rule.get(o["locator_rule_id"])
-        m = snap.matches_by_occ[o["occurrence_key"]].get(name_rule) if name_rule else None
-        occ_name[o["occurrence_key"]] = m["value"] if m and m["status"] == "found" else None
-        key, name = o["record_external_identifier"], occ_name[o["occurrence_key"]]
-        if key and o["locator_rule_id"] == full and name:
-            names[key].setdefault(_name_key(name), name)
-    variant = {}
-    collisions = []
-    for ck, by_name in sorted(names.items()):
-        if len(by_name) > 1:
-            keys = sorted(by_name)
-            for i, k in enumerate(keys, 1):
-                variant[(ck, k)] = f"{ck}~{i}"
-            collisions.append({"record_external_identifier": ck,
-                               "golden_record_ids": [f"{ck}~{i}" for i in range(1, len(keys) + 1)],
-                               "names": [by_name[k] for k in keys]})
-    out = {}
-    for key, o in snap.occurrences.items():
-        ck = o["record_external_identifier"]
-        if ck is None:
-            continue
-        out[key] = variant.get((ck, _name_key(occ_name[key])), ck)
-    return out, collisions
-
-
-def plan(rv: Review, properties: set[str] | None = None, stems: set[str] | None = None) -> dict:
-    """Everything a publication would write for these properties (None: all), without writing it. Human-reviewed
-    values are in it whatever their property. `stems`: only these pages (a verdict rewrites one page's file; working
-    out the whole catalog took ~10 s a verdict on Marshall). A page's rows get the same states either way: the rows
-    of other pages only re-attach annotations to their own course and page."""
-    snap = rv.snap
-    ids, collisions = golden_record_ids(rv)
-    ann = defaultdict(list)
-    for e in rv.live:
-        t = e["target"]
-        if t.get("rule_id") and t.get("occurrence_key"):
-            ann[(t["rule_id"], t["occurrence_key"])].append(e["annotation_id"])
-    # who approved each value: an expert who confirmed it (on the Rules or Records tab), else the rule's approval
-    human: dict[tuple[str, str], dict] = {}
-    by_rule: dict[str, dict] = {}
-    row_states: dict[str, dict] = {}  # rule → occurrence_key → its row's state
-    for rid, r in snap.rules.items():
-        if r["kind"] != "property":
-            continue
-        rows = snap.rows(rid) if stems is None else snap.rows_on(rid, stems)
-        states = rv.row_states(rid, rows, stems)
-        row_states[rid] = {row["occurrence_key"]: states[row["key"]] for row in rows if row.get("occurrence_key")}
-        for row in rows:
-            st = states[row["key"]]
-            if row.get("items") is not None:  # a list: each item's own expert ✓ (property-rules spec §4.4)
-                for it in row["items"]:
-                    x = st.items.get(norm(it["value"]))
-                    if x is not None and x.human:
-                        human[(rid, row["occurrence_key"], it["value_index"])] = x.human
-            elif st.human:
-                human[(rid, row["occurrence_key"], 0)] = st.human
-        if properties is None or r.get("property_label") in properties:
-            # a rule's status needs every row's state (and is cached across Reviews): only the whole rule's states
-            by_rule[rid] = rv.rule_status(rid, states if stems is None else None)
-    # the reviewers' answers (sme-fixes §5.4, §6, §7, golden_answers.py): the rows where the rule found nothing that
-    # still publish something (a ✕ with an answer, a ✓ on "nothing found")
-    answered: dict[str, set[str]] = defaultdict(set)  # occurrence_key → rules with no found value to publish
-    for rid, sts in row_states.items():
-        for k, st in sts.items():
-            if golden_answers.wants_row(st):
-                answered[k].add(rid)
-    human_at: dict[tuple[str, str], dict[int, dict]] = defaultdict(dict)  # (rule, occurrence) → value_index → verdict
-    for (hr, hk, i), v in human.items():
-        human_at[(hr, hk)][i] = v
-    pages: dict[str, list[dict]] = defaultdict(list)
-    lineage: list[dict] = []
-    skipped_no_key = 0
-    used: Counter = Counter()  # (golden_record_id, page_stem, property) → values already published
-    occs = snap.occurrences.items() if stems is None else \
-        ((k, o) for k, o in snap.occurrences.items() if o["page_stem"] in stems)
-    place = model.property_order(rv.snap.ctx.cls)  # once: it checks the properties file each call
-    seen: dict[tuple[str, str], list[dict]] = defaultdict(list)  # (page, golden_record_id) → its records there
-    for key, o in sorted(occs, key=lambda kv: (kv[1]["page_stem"], kv[1]["locator_index"])):
-        gid = ids.get(key)
-        if gid is None:
-            skipped_no_key += 1
-            continue
-        stem = o["page_stem"]
-        url = snap.page[stem]["url"]
-        fields, rows = [], []
-        rids = sorted(set(snap.items_by_occ[key]) | answered.get(key, set()), key=lambda rid: (
-            place.get(snap.rules[rid].get("property_label"), 99), rid))
-        for rid in rids:
-            r = snap.rules[rid]
-            st = by_rule.get(rid, {})
-            rule_ok = {"approval": "rule", "approved_by": st.get("approved_by"), "approved_at": st.get("approved_at")}
-            for g in golden_answers.fields(r, snap.items_by_occ[key].get(rid, []), row_states.get(rid, {}).get(key),
-                                           o["css_path"], human_at.get((rid, key), {}), rule_ok,
-                                           properties is None or r.get("property_label") in properties):
-                ok = {k: g[k] for k in ("approval", "approved_by", "approved_at")}
-                fields.append({"ctdl_property": r.get("ctdl_property"), "property": r["property_label"],
-                               "value": g["value"], **({"absent": True} if g.get("absent") else {}),
-                               "source_url": url, "location": g["location"], **ok})
-                rows.append({"golden_record_id": gid, "page_stem": stem, "property": r["property_label"],
-                             "ctdl_property": r.get("ctdl_property"), "extraction": snap.ext, "rule_id": rid,
-                             "rule_version": r["version"], "occurrence_key": key,
-                             "match_value_index": g["match_value_index"],
-                             "annotation_ids": sorted(ann.get((rid, key), [])), **ok})
-        if properties is not None and not fields:
-            continue  # nothing of the chosen properties for this course
-        record = _record(gid, fields)
-        if any(r == record for r in seen[(stem, gid)]):
-            continue  # the same course listed twice on a page with identical values: once is enough
-        seen[(stem, gid)].append(record)
-        # A second, different record with the same golden_record_id on the same page: its values get the next value_index.
-        for row in rows:
-            row["value_index"] = used[(gid, stem, row["property"])]
-            used[(gid, stem, row["property"])] += 1
-        pages[stem].append(record)
-        lineage.extend(rows)
-    return {"pages": dict(pages), "lineage": lineage, "collisions": collisions, "skipped_no_record_external_identifier": skipped_no_key,
-            "courses": len({r["golden_record_id"] for r in lineage}), "records": sum(len(v) for v in pages.values())}
-
-
-def property_rules(rv: Review) -> list[dict]:
-    """Each property the property rules fill, with its rule and status (for the full courses' locator, i.e. the
-    course pages)."""
-    out = []
-    place, full = model.property_order(rv.snap.ctx.cls), properties.record_locator(rv.snap.rules, rv.snap.ctx.cls)
-    for rid, r in sorted(rv.snap.rules.items(), key=lambda kv: (place.get(kv[1].get("property_label"), 99), kv[0])):
-        if r["kind"] != "property" or r["definition"].get("locator") != full:
-            continue
-        st = rv.rule_status(rid)
-        out.append({"property": r["property_label"], "ctdl_property": r.get("ctdl_property"), "rule_id": rid,
-                    "version": r["version"], "status": st["status"], "approved_by": st.get("approved_by")})
-    return out
-
-
-def published_properties(ctx: Ctx, to: str) -> dict[str, dict]:
-    """property → the latest publication to `to` that published it (publications before per-property publishing
-    published every property)."""
-    out: dict[str, dict] = {}
-    docs = []
-    for g in ctx.crawl_class().get("golden", []):
-        if g.get("to", "").rstrip("/") != to.rstrip("/"):
-            continue
-        try:
-            docs.append(ctx.read_json(f"{g['path']}/publication.json", immutable=False))
-        except FileNotFoundError:
-            continue
-    for d in sorted(docs, key=lambda d: d.get("published_at") or ""):
-        props = d.get("properties") or [r["property"] for r in d.get("property_gate", [])] or list(model.FIRST_EIGHT_ORDER)  # before the property list: the eight
-        for prop in props:
-            gate = next((r for r in d.get("property_gate", []) if r["property"] == prop), {})
-            out[prop] = {"publication": d["publication"], "published_at": d.get("published_at"),
-                         "published_by": d.get("published_by"), "extraction": d.get("extraction"),
-                         "rule_version": gate.get("version")}
-    return out
-
-
-def approval(rv: Review) -> tuple[bool, list[dict]]:
-    statuses = [{"rule_id": rid, "version": r["version"], "kind": r["kind"], **rv.rule_status(rid)}
-                for rid, r in sorted(rv.snap.rules.items(), key=lambda kv: (model.KIND_ORDER[kv[1]["kind"]], kv[0]))]
-    return all(s["status"] == "approved" for s in statuses), statuses
-
-
 GOLDEN_CONTAINER = "azure://https://ceteststorage.blob.core.windows.net/xtra-golden-sets"
-
-
-def default_target(ctx: Ctx) -> str:
-    """Where the Studio publishes: GOLDEN_DATASETS_GOLDEN_ROOT if set (a local folder or a scratch prefix); else, for
-    a local Studio root, the folder `golden` beside it (so development never writes to the shared container); else
-    the xtra-golden-sets container."""
-    if os.environ.get("GOLDEN_DATASETS_GOLDEN_ROOT"):
-        return os.environ["GOLDEN_DATASETS_GOLDEN_ROOT"]
-    if isinstance(ctx.root, LocalRoot):
-        return str(Path(ctx.root.base).parent / "golden")
-    return GOLDEN_CONTAINER
-
-
-def version_name(ruleset_version: int) -> str:
-    return f"ruleset-v{ruleset_version}"
-
-
-def class_prefix(ctx: Ctx) -> str:
-    """A class's part of the golden root: Course keeps the paths xtra-cli reads today; every other class sits under
-    its own folder, so its page files never meet Course's (`learningprogram/<catalog>/<crawl>/…`)."""
-    return "" if ctx.cls == "course" else f"{ctx.cls}/"
-
-
-def latest_prefix(ctx: Ctx) -> str:
-    return f"{class_prefix(ctx)}{ctx.catalog}/{ctx.crawl}/"
-
-
 #: Where a version's trees are stored (property-rules spec §4.16, X1): the golden dataset is only human-reviewed
 #: values, the silver dataset (also called rule-matched) every value of an approved rule. Versions written before keep
 #: their folders (`rule-matched/`, `human-reviewed/`): stored data isn't rewritten (O7).
 TREE_DIRS = {RULE_MATCHED: "silver", HUMAN_REVIEWED: "golden"}
 NAMED = "golden-silver"  # the manifest entry's `trees` for a version stored in TREE_DIRS
+APPROVAL_FIELDS = ("approval", "approved_by", "approved_at")
+GATE_FIELDS = ("rule_id", "version", "status", "approved_by")
+PAGE_FORMAT = ("golden sets per-page shape: <catalog>/<crawl>/<stem>/<stem>.json = "
+               "[{golden_record_id, approval, fields: [{ctdl_property, property, value, source_url, location, "
+               "approval, approved_by, approved_at}]}], in two trees (rule-matched: every value; "
+               "human-reviewed: approval human only), values with a CTDL term only (the rest are in the "
+               "lineage); <stem>.html as crawled only at the latest location; the whole golden dataset of "
+               "this ruleset, never merged")
+APPROVAL_MEANING = ("human: a subject matter expert confirmed the value (marked it correct, or selected the "
+                    "right text it now is); rule: the value is approved by its rule's approval")
 
 
-def named_trees(ctx: Ctx, ruleset_version: int) -> bool:
-    """Whether this version's trees are stored as golden/ and silver/ (a version not written yet will be)."""
-    g = versions(ctx).get(ruleset_version)
-    return g is None or g.get("trees") == NAMED
+# =====================================================================================================
+# Commands
+# =====================================================================================================
+def cmd_golden_publish(args) -> int:
+    from .check import golden_file_checks
+    from .query import connect
+
+    ctx = Ctx.from_args(args)
+    started = time.perf_counter()
+    doc = publish(ctx, args.to or default_target(ctx), "golden-datasets golden publish", args.allow_unapproved,
+                  properties=args.property)
+    _print_publication(doc, time.perf_counter() - started)
+    return _report_checks(ctx, golden_file_checks, connect, {doc["publication"]})
 
 
-def version_root(ctx: Ctx, ruleset_version: int, tree: str = RULE_MATCHED) -> str:
-    """What `xtra score --baseline-uri` points at (below the golden root) to score one tree of a version."""
-    folder = TREE_DIRS[tree] if named_trees(ctx, ruleset_version) else tree
-    return f"{class_prefix(ctx)}catalogs/{ctx.catalog}/versions/{version_name(ruleset_version)}/{folder}"
+def cmd_golden_backfill(args) -> int:
+    from .check import golden_file_checks
+    from .query import connect
+
+    ctx = Ctx.from_args(args)
+    docs = backfill(ctx, args.to or default_target(ctx), again=getattr(args, "again", False))
+    if not docs:
+        print("nothing to backfill: every publication is a golden dataset version already")
+        return 0
+    return _report_checks(ctx, golden_file_checks, connect, {d["publication"] for d in docs})
 
 
-def version_prefix(ctx: Ctx, ruleset_version: int, tree: str = RULE_MATCHED) -> str:
-    return f"{version_root(ctx, ruleset_version, tree)}/{ctx.catalog}/{ctx.crawl}/"
+def _print_publication(doc: dict, seconds: float) -> None:
+    print(f"silver dataset {doc['publication']} ({', '.join(doc['properties'])}): {doc['pages']:,} pages, {doc['courses']:,} courses, "
+          f"{doc['records']:,} records, {doc['lineage_rows']:,} lineage rows → {doc['to']}/{doc['version_prefix']}"
+          f"{' and ' + doc['to_prefix'] if doc['latest'] else ''} ({seconds:.1f}s)")
+    if not doc["approval_gate"]["all_rules_approved"]:
+        print("  warning: published with --allow-unapproved; publication.json records approval_gate.all_rules_approved = false")
+    if doc["golden_record_id_collisions"]:
+        print(f"  golden_record_id collisions to confirm: {len(doc['golden_record_id_collisions'])} course codes")
 
 
-def tree_pages(pages: dict[str, list[dict]], tree: str) -> tuple[dict[str, list[dict]], list[dict]]:
-    """The pages as one tree holds them (`rule-matched`: every value with a CTDL term; `human-reviewed`: only the
-    `approval: human` ones), and the pages left out (with why). The scorer pairs a page's records with the extract's
-    by position and rejects a record with no values: trailing empty records are dropped, and a page whose empty record
-    comes before a non-empty one is left out."""
-    out, left_out = {}, []
-    for stem, records in pages.items():
-        recs = [_record(r.get("golden_record_id"),
-                        [f for f in r.get("fields", [])
-                         if f.get("ctdl_property") and (tree == RULE_MATCHED or f.get("approval") == "human")])
-                for r in records]
-        while recs and not recs[-1]["fields"]:
-            recs.pop()
-        if not recs:
-            continue
-        if any(not r["fields"] for r in recs):
-            why = "rule-matched" if tree == RULE_MATCHED else "human-reviewed"
-            left_out.append({"stem": stem, "why": f"an earlier course on the page has no {why} values"})
-            continue
-        out[stem] = recs
-    return out, left_out
+def _report_checks(ctx: Ctx, golden_file_checks, connect, pubs: set[str]) -> int:
+    results = golden_file_checks(Ctx(ctx.root, ctx.catalog, ctx.crawl, cls=ctx.cls),
+                                 connect(Ctx(ctx.root, ctx.catalog, ctx.crawl, cls=ctx.cls)))
+    mine = [r for r in results if r[2].split(":")[0] in pubs]
+    for r in mine:
+        print(f"  check: {r[2]} — {r[4]} rows, {r[3]} bad")
+    return 1 if any(r[3] for r in mine) else 0
 
 
-def trees(pages: dict[str, list[dict]]) -> dict[str, dict[str, list[dict]]]:
-    """{tree: pages}: the human-reviewed tree is the `approval: human` subset of the rule-matched one."""
-    rule, _ = tree_pages(pages, RULE_MATCHED)
-    return {RULE_MATCHED: rule, HUMAN_REVIEWED: tree_pages(rule, HUMAN_REVIEWED)[0]}
-
-
-def tree_stems(target, prefix: str) -> list[str]:
-    """The pages that have a file below `prefix`."""
-    prefix = prefix.rstrip("/")
-    out = []
-    for p in target.list(prefix):
-        parts = p[len(prefix) + 1:].split("/")
-        if len(parts) == 2 and parts[1] == f"{parts[0]}.json":
-            out.append(parts[0])
-    return out
-
-
-def versions(ctx: Ctx) -> dict[int, dict]:
-    """ruleset version → its golden dataset's manifest entry ({publication, path, to})."""
-    out = {}
-    for g in ctx.crawl_class().get("golden", []):
-        m = VERSION.match(g["publication"])
-        if m:
-            out[int(m.group(1))] = g
-    return out
-
-
-def inherited_columns(ctx: Ctx, ruleset_version: int) -> set[str]:
-    """The columns (properties) published in the golden datasets of earlier rulesets: every later version has them
-    too, its values from its own ruleset's extraction (columns only grow, Evals spec §1 rows 3, 16)."""
-    out: set[str] = set()
-    for v, g in versions(ctx).items():
-        if v < ruleset_version:
-            try:
-                out |= set(ctx.read_json(f"{g['path']}/publication.json", immutable=False).get("properties") or [])
-            except FileNotFoundError:
-                continue
-    return out
-
-
-def page_json(records: list[dict]) -> str:
-    """The text of one <page_stem>.json, exactly as written."""
-    return json.dumps(records, indent=2, ensure_ascii=False) + "\n"
-
-
-def golden_rows(ctx: Ctx, pages: dict[str, list[dict]]) -> list[dict]:
-    """golden.parquet: one row per value of the page files."""
-    out = []
-    for stem, records in sorted(pages.items()):
-        n: Counter = Counter()  # value_index per (golden_record_id, property) across the page's records
-        for rec in records:
-            for f in rec["fields"]:
-                k = (rec["golden_record_id"], f["property"])
-                obj = isinstance(f["value"], dict)  # a list of objects' object (§5.4): JSON text, its key field's place
-                loc = f["location"]
-                if obj and loc:
-                    loc = next(iter(loc.values()), None)
-                out.append({"catalog": ctx.catalog, "crawl": ctx.crawl, "stem": stem,
-                            "golden_record_id": rec["golden_record_id"], "property": f["property"],
-                            "ctdl_property": f["ctdl_property"], "value_index": n[k],
-                            "value": model.canon(f["value"]) if obj else f["value"],
-                            "source_url": f["source_url"], "location": loc, "approval": f["approval"],
-                            "approved_by": f["approved_by"], "approved_at": f["approved_at"]})
-                n[k] += 1
-    return out
-
-
-def publication_doc(ctx: Ctx, rv: Review, p: dict, pub: str, to: str, by: str, ok: bool, statuses: list[dict],
-                    info: dict, properties: list[str] | None = None, files: dict | None = None) -> dict:
-    """publication.json: which properties, extraction and ruleset were published, where to, and the gates."""
-    props = {r["property"]: r for r in property_rules(rv)}
-    chosen = properties if properties is not None else list(props)
-    counts: dict[str, Counter] = defaultdict(Counter)
-    for row in p["lineage"]:
-        counts[row["property"]][row["approval"]] += 1
-    approvals = {"human": sum(c["human"] for c in counts.values()), "rule": sum(c["rule"] for c in counts.values()),
-                 "by_property": {prop: {"human": c["human"], "rule": c["rule"]} for prop, c in counts.items()},
-                 "meaning": "human: a subject matter expert confirmed the value (marked it correct, or selected the "
-                            "right text it now is); rule: the value is approved by its rule's approval"}
-    return {"publication": pub, "properties": chosen, "approvals": approvals,
-            "property_gate": [{k: props[x][k] for k in ("property", "ctdl_property", "rule_id", "version", "status",
-                                                         "approved_by")} for x in chosen if x in props],
-            "identity_rules": [{k: s[k] for k in ("rule_id", "version", "status", "approved_by")}
-                               for s in statuses if s["kind"] in ("page", "locator")], "catalog": ctx.catalog, "crawl": ctx.crawl, "extraction": rv.snap.ext,
-            "ruleset_version": rv.snap.ruleset_version, "published_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "published_by": by, "to": to, "to_prefix": latest_prefix(ctx),
-            "version_prefix": version_prefix(ctx, rv.snap.ruleset_version),
-            "trees": {t: {"prefix": version_prefix(ctx, rv.snap.ruleset_version, t),
-                          "pages": len((files or {}).get(t, {}))} for t in TREES},
-            "pages": len(p["pages"]),
-            "page_stems": sorted(p["pages"]), "courses": p["courses"], "records": p["records"],
-            "lineage_rows": info["rows"], "lineage_sha256": info["sha256"],
-            "golden_record_id_collisions": p["collisions"], "skipped_no_record_external_identifier": p["skipped_no_record_external_identifier"],
-            "format": "golden sets per-page shape: <catalog>/<crawl>/<stem>/<stem>.json = "
-                      "[{golden_record_id, approval, fields: [{ctdl_property, property, value, source_url, location, "
-                      "approval, approved_by, approved_at}]}], in two trees (rule-matched: every value; "
-                      "human-reviewed: approval human only), values with a CTDL term only (the rest are in the "
-                      "lineage); <stem>.html as crawled only at the latest location; the whole golden dataset of "
-                      "this ruleset, never merged",
-            "approval_gate": {"all_rules_approved": ok,
-                              "rules": [{k: s[k] for k in ("rule_id", "version", "status", "approved_by")}
-                                        for s in statuses]}}
-
-
-def choose(rv: Review, properties: list[str] | None, allow_unapproved: bool = False) -> list[str]:
-    """The properties to publish: those asked for (None: every property whose rule is approved). Each needs its
-    property rule approved, unless `allow_unapproved` (testing)."""
-    rules = {r["property"]: r for r in property_rules(rv)}
-    if properties is None:
-        chosen = [p for p, r in rules.items() if r["status"] == "approved" or allow_unapproved]
-        if not chosen:
-            raise UserError("no property's rule is approved yet; approve one on the Rules tab, then publish it")
-        return chosen
-    unknown = [p for p in properties if p not in rules]
-    if unknown:
-        raise UserError(f"unknown properties: {', '.join(unknown)} (known: {', '.join(rules)})")
-    pending = [p for p in properties if rules[p]["status"] != "approved"]
-    if pending and not allow_unapproved:
-        names = ", ".join(f"{p} ({rules[p]['rule_id']})" for p in pending)
-        raise UserError(f"not approved yet: {names}; a property is published once its rule is approved")
-    return [p for p in rules if p in properties]
-
-
-def _copy_html(ctx: Ctx, target, path: str, stem: str) -> None:
-    if target.stat(path) is not None:
-        return
-    src = layout.page_html(ctx.catalog, ctx.crawl, stem)
-    crawls = ctx.crawl_root
-    if isinstance(target, AzureRoot) and isinstance(crawls, AzureRoot) and target.account == crawls.account:
-        target.copy_from_url(path, crawls.blob_url_with_sas(src))  # server-side, nothing downloaded
-    else:
-        target.write_file(path, ctx.page_path(stem))
-
-
-def _write_page(ctx: Ctx, target, folder: str, records: list[dict]) -> None:
-    """One page's file in `folder` (`…/<stem>`), or none when it has no records. The page's HTML goes only to the
-    latest location; version trees are JSON only."""
-    stem = folder.rsplit("/", 1)[1]
-    html = f"{folder}/{stem}.html" if folder.startswith(latest_prefix(ctx)) else None
-    if records:
-        target.write_text(f"{folder}/{stem}.json", page_json(records))
-        if html:
-            _copy_html(ctx, target, html, stem)
-    else:
-        target.delete(f"{folder}/{stem}.json")
-        if html:
-            target.delete(html)
-
-
-def _stems_written(ctx: Ctx, to: str) -> set[str]:
-    """Pages any publication to `to` wrote at the latest location."""
-    out = set()
-    for g in ctx.crawl_class().get("golden", []):
-        if g.get("to", "").rstrip("/") == to.rstrip("/"):
-            try:
-                out |= set(ctx.read_json(f"{g['path']}/publication.json", immutable=False).get("page_stems", []))
-            except FileNotFoundError:
-                pass
-    return out
-
-
+# =====================================================================================================
+# Publishing
+# =====================================================================================================
 def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=print,
             properties: list[str] | None = None, ext: str | None = None, published_at: str | None = None,
             note: dict | None = None) -> dict:
@@ -493,61 +147,17 @@ def publish(ctx: Ctx, to: str, by: str, allow_unapproved: bool = False, log=prin
     rv = LOADER.review(ctx, ext)
     n = rv.snap.ruleset_version
     ok, statuses = approval(rv)
-    chosen = choose(rv, properties, allow_unapproved) if properties != [] else []
-    pub = version_name(n)
-    gdir = layout.golden_dir(ctx.catalog, ctx.crawl, ctx.cls, pub)
-    try:
-        before = ctx.read_json(f"{gdir}/publication.json", immutable=False)
-    except FileNotFoundError:
-        before = None
-    # columns only grow, except a column whose rule was reset since its approval (phase1-followups §4.5)
-    columns = sorted((set(chosen) | set((before or {}).get("properties", [])) | inherited_columns(ctx, n))
-                     - (rv.withdrawn() - set(chosen)), key=lambda x: model.property_order(ctx.cls).get(x, 99))
+    gdir = layout.golden_dir(ctx.catalog, ctx.crawl, ctx.cls, version_name(n))
+    before = _read_publication(ctx, gdir)
+    columns = _columns_kept(ctx, rv, _chosen(rv, properties, allow_unapproved), before)
     p = plan(rv, set(columns))
     target = open_root(to)
     latest = n >= max(versions(ctx), default=0)
-    files = trees(p["pages"])
-    # pages the version's trees (or, at the latest location, any publication to this root) had but don't now
-    writes: dict[str, list[dict]] = {}
-    for t in TREES:
-        writes |= {f"{version_prefix(ctx, n, t)}{s}": [] for s in tree_stems(target, version_prefix(ctx, n, t))}
-    if latest:
-        writes |= {f"{latest_prefix(ctx)}{s}": [] for s in _stems_written(ctx, target.uri)}
-    for t in TREES:
-        for stem, records in files[t].items():
-            writes[f"{version_prefix(ctx, n, t)}{stem}"] = records
-    if latest:
-        for stem, records in files[RULE_MATCHED].items():
-            writes[f"{latest_prefix(ctx)}{stem}"] = records
-    from concurrent.futures import ThreadPoolExecutor
-
-    with ThreadPoolExecutor(max_workers=16) as pool:
-        write_page = telemetry.in_this_request(lambda kv: _write_page(ctx, target, kv[0], kv[1]))
-        list(pool.map(write_page, sorted(writes.items())))
-    for r in p["lineage"]:
-        r["publication"] = pub
-    info = ctx.write_table(f"{gdir}/lineage.parquet", p["lineage"], model.LINEAGE, if_none_match=False)
-    ctx.write_table(f"{gdir}/golden.parquet", golden_rows(ctx, p["pages"]), model.GOLDEN, if_none_match=False)
-    doc = publication_doc(ctx, rv, p, pub, target.uri, by, ok, statuses, info, columns, files)
-    if published_at:
-        doc["published_at"] = published_at
-    if before:
-        doc["created_at"] = before.get("created_at") or before.get("published_at")
-    doc.setdefault("created_at", doc["published_at"])
-    if note:
-        doc.update(note)
-    ctx.root.write_json(f"{gdir}/publication.json", doc)
-
-    named = named_trees(ctx, n)
-
-    def change(m: dict) -> None:
-        k = manifest.crawl_class(manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl), ctx.cls)
-        manifest.add_unique(k["golden"], {"publication": pub, "path": gdir, "to": target.uri,
-                                          **({"trees": NAMED} if named else {})},
-                            key=lambda g: g["publication"])
-
-    manifest.update(ctx.root, change)
-    ctx.invalidate()
+    files = _write_trees(ctx, target, n, p["pages"], latest)
+    info = _write_tables(ctx, gdir, version_name(n), p)
+    doc = _dated(publication_doc(ctx, rv, p, version_name(n), target.uri, by, ok, statuses, info, columns, files),
+                 before, published_at, note)
+    _save_publication(ctx, gdir, doc, target.uri, named_trees(ctx, n))
     return doc | {"latest": latest}  # whether it also went to the latest location (not saved: a newer one may come)
 
 
@@ -559,69 +169,24 @@ def publish_page(ctx: Ctx, stem: str, reason: str, by: str, create: bool = False
     what changed, or None."""
     vs = versions(ctx)
     if not vs:
-        if not create:
-            return None
-        doc = publish(ctx, default_target(ctx), by, properties=[])
-        due = request_score(ctx, reason, [column] if column else None)
-        return {"publication": doc["publication"], "created": True, "files": doc["pages"], "due_at": due}
+        return _create_golden(ctx, reason, by, column) if create else None
     n = max(vs)
     doc = ctx.read_json(f"{vs[n]['path']}/publication.json", immutable=False)
-    rv = LOADER.review(ctx, doc["extraction"])
-    files = trees({stem: plan(rv, set(doc["properties"]), stems={stem})["pages"].get(stem, [])})
-    target = open_root(doc["to"])
-    changed = []
-    for folder, records in ((f"{version_prefix(ctx, n, RULE_MATCHED)}{stem}", files[RULE_MATCHED].get(stem)),
-                            (f"{version_prefix(ctx, n, HUMAN_REVIEWED)}{stem}", files[HUMAN_REVIEWED].get(stem)),
-                            (f"{latest_prefix(ctx)}{stem}", files[RULE_MATCHED].get(stem))):
-        try:
-            old = target.read_text(f"{folder}/{stem}.json")
-        except FileNotFoundError:
-            old = None
-        if old == (page_json(records) if records else None):
-            continue
-        _write_page(ctx, target, folder, records or [])
-        changed.append(f"{folder}/{stem}.json")
+    changed = _rewrite_page(ctx, n, doc, stem)
     if not changed:
         return None
     return {"publication": doc["publication"], "created": False, "files": changed,
             "due_at": request_score(ctx, reason, [column] if column else None)}
 
 
-def column_name(prop: str, cls: str = "course") -> str | None:
-    """A property's column: its CTDL path without prefixes (None for one with no CTDL term, e.g. Learning Type)."""
-    term = model.ctdl_term(cls).get(prop)
-    return ">".join(t.split(":", 1)[-1] for t in term.split(">")) if term else None
-
-
-def columns_of(props: list[str], cls: str = "course") -> list[str]:
-    """The columns of these properties, in display order; properties with no CTDL term aren't columns."""
-    return [c for c in (column_name(p, cls) for p in sorted(props, key=lambda x: model.property_order(cls).get(x, 99))) if c]
-
-
-def approval_publishes(rv: Review, rule_id: str) -> dict | None:
-    """What approving this rule publishes (Evals spec §4.1, §6.6), or None for a rule that isn't a column's (page
-    rules, record locators, property rules for program-page lines). The column goes into the golden dataset of the
-    rule's ruleset: the first approval creates that version with every column approved so far, later ones rewrite it
-    with the extra column. A rule with no CTDL term (Learning Type) is approved but not written (`writes` False).
-    `now` / `after`: the version's properties before and after (after: with the columns of earlier versions too)."""
-    col = next((r for r in property_rules(rv) if r["rule_id"] == rule_id), None)
-    if col is None:
+def publish_approved(ctx: Ctx, rule_id: str, by: str) -> dict | None:
+    """After a column's rule is approved: publish the column into its ruleset's golden dataset (with every other
+    column approved so far). None when the rule isn't a column's or its column has no CTDL term."""
+    p = approval_publishes(LOADER.review(ctx), rule_id)
+    if not p or not p["writes"]:
         return None
-    ctx, n = rv.snap.ctx, rv.snap.ruleset_version
-    try:
-        now = ctx.read_json(f"{layout.golden_dir(ctx.catalog, ctx.crawl, ctx.cls, version_name(n))}/publication.json",
-                            immutable=False).get("properties") or []
-        creates = False
-    except FileNotFoundError:
-        now, creates = [], True
-    adds = [r["property"] for r in property_rules(rv)
-            if r["ctdl_property"] and (r["status"] == "approved" or r["rule_id"] == rule_id)]
-    after = sorted((set(now) | set(adds) | inherited_columns(ctx, n)) - (rv.withdrawn() - {col["property"]}),
-                   key=lambda x: model.property_order(rv.snap.ctx.cls).get(x, 99)) if col["ctdl_property"] else now
-    return {"rule_id": rule_id, "property": col["property"], "column": column_name(col["property"], rv.snap.ctx.cls),
-            "writes": bool(col["ctdl_property"]), "golden": version_name(n), "ruleset_version": n, "creates": creates,
-            "now": now, "after": after, "adds": [p for p in after if p not in now] or [col["property"]],
-            "approved": adds}
+    doc = publish(ctx, default_target(ctx), by, properties=p["approved"])  # earlier versions' columns come along
+    return doc | {"created": p["creates"]}
 
 
 def publish_reset(ctx: Ctx, rule_id: str, by: str, why: str) -> dict | None:
@@ -635,14 +200,24 @@ def publish_reset(ctx: Ctx, rule_id: str, by: str, why: str) -> dict | None:
                                                                               "by": by, "why": why}})
 
 
-def publish_approved(ctx: Ctx, rule_id: str, by: str) -> dict | None:
-    """After a column's rule is approved: publish the column into its ruleset's golden dataset (with every other
-    column approved so far). None when the rule isn't a column's or its column has no CTDL term."""
-    p = approval_publishes(LOADER.review(ctx), rule_id)
-    if not p or not p["writes"]:
+def approval_publishes(rv: Review, rule_id: str) -> dict | None:
+    """What approving this rule publishes (Evals spec §4.1, §6.6), or None for a rule that isn't a column's (page
+    rules, record locators, property rules for program-page lines). The column goes into the golden dataset of the
+    rule's ruleset: the first approval creates that version with every column approved so far, later ones rewrite it
+    with the extra column. A rule with no CTDL term (Learning Type) is approved but not written (`writes` False).
+    `now` / `after`: the version's properties before and after (after: with the columns of earlier versions too)."""
+    col = next((r for r in property_rules(rv) if r["rule_id"] == rule_id), None)
+    if col is None:
         return None
-    doc = publish(ctx, default_target(ctx), by, properties=p["approved"])  # earlier versions' columns come along
-    return doc | {"created": p["creates"]}
+    n = rv.snap.ruleset_version
+    now, creates = _version_properties(rv.snap.ctx, n)
+    adds = [r["property"] for r in property_rules(rv)
+            if r["ctdl_property"] and (r["status"] == "approved" or r["rule_id"] == rule_id)]
+    after = _columns_after_approval(rv, col["property"], now, adds) if col["ctdl_property"] else now
+    return {"rule_id": rule_id, "property": col["property"], "column": column_name(col["property"], rv.snap.ctx.cls),
+            "writes": bool(col["ctdl_property"]), "golden": version_name(n), "ruleset_version": n, "creates": creates,
+            "now": now, "after": after, "adds": [p for p in after if p not in now] or [col["property"]],
+            "approved": adds}
 
 
 def request_score(ctx: Ctx, reason: str, columns: list[str] | None = None) -> str:
@@ -665,6 +240,201 @@ def backfill(ctx: Ctx, to: str, log=print, again: bool = False) -> list[dict]:
     extraction they were published from. The old
     entries leave the manifest; their folders stay. `again` also writes every existing version again (oldest first,
     so the newest ends at the latest location), e.g. after the layout changed."""
+    old = _old_publications(ctx)
+    done = [_backfill_ruleset(ctx, to, items, log) for _, items in sorted(_by_ruleset(old).items())]
+    _drop_golden_entries(ctx, {d["publication"] for d, _ in old})
+    if again:
+        done += _write_versions_again(ctx, to, {d["publication"] for d in done}, log)
+    return done
+
+
+# -- publish ------------------------------------------------------------------------------------------------
+def approval(rv: Review) -> tuple[bool, list[dict]]:
+    statuses = [{"rule_id": rid, "version": r["version"], "kind": r["kind"], **rv.rule_status(rid)}
+                for rid, r in sorted(rv.snap.rules.items(), key=lambda kv: (model.KIND_ORDER[kv[1]["kind"]], kv[0]))]
+    return all(s["status"] == "approved" for s in statuses), statuses
+
+
+def choose(rv: Review, properties: list[str] | None, allow_unapproved: bool = False) -> list[str]:
+    """The properties to publish: those asked for (None: every property whose rule is approved). Each needs its
+    property rule approved, unless `allow_unapproved` (testing)."""
+    rules = {r["property"]: r for r in property_rules(rv)}
+    if properties is None:
+        chosen = [p for p, r in rules.items() if r["status"] == "approved" or allow_unapproved]
+        if not chosen:
+            raise UserError("no property's rule is approved yet; approve one on the Rules tab, then publish it")
+        return chosen
+    unknown = [p for p in properties if p not in rules]
+    if unknown:
+        raise UserError(f"unknown properties: {', '.join(unknown)} (known: {', '.join(rules)})")
+    pending = [p for p in properties if rules[p]["status"] != "approved"]
+    if pending and not allow_unapproved:
+        names = ", ".join(f"{p} ({rules[p]['rule_id']})" for p in pending)
+        raise UserError(f"not approved yet: {names}; a property is published once its rule is approved")
+    return [p for p in rules if p in properties]
+
+
+def _chosen(rv: Review, properties: list[str] | None, allow_unapproved: bool) -> list[str]:
+    """`choose`, except that [] asks for no property (only the human-reviewed values)."""
+    return choose(rv, properties, allow_unapproved) if properties != [] else []
+
+
+def _read_publication(ctx: Ctx, gdir: str) -> dict | None:
+    try:
+        return ctx.read_json(f"{gdir}/publication.json", immutable=False)
+    except FileNotFoundError:
+        return None
+
+
+def _columns_kept(ctx: Ctx, rv: Review, chosen: list[str], before: dict | None) -> list[str]:
+    """Columns only grow, except a column whose rule was reset since its approval (phase1-followups §4.5)."""
+    kept = set(chosen) | set((before or {}).get("properties", [])) | inherited_columns(ctx, rv.snap.ruleset_version)
+    return sorted(kept - (rv.withdrawn() - set(chosen)), key=lambda x: model.property_order(ctx.cls).get(x, 99))
+
+
+def _write_trees(ctx: Ctx, target, n: int, pages: dict[str, list[dict]], latest: bool) -> dict:
+    """Every page file of the version's trees (and of the latest location, for the latest version); a page a tree had
+    but doesn't now loses its file. Returns the trees."""
+    files = trees(pages)
+    writes = _stale_pages(ctx, target, n, latest) | _page_files(ctx, n, files, latest)
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        write_page = telemetry.in_this_request(lambda kv: _write_page(ctx, target, kv[0], kv[1]))
+        list(pool.map(write_page, sorted(writes.items())))
+    return files
+
+
+def _stale_pages(ctx: Ctx, target, n: int, latest: bool) -> dict[str, list]:
+    """Pages the version's trees (or, at the latest location, any publication to this root) have now: none, until
+    `_page_files` says otherwise."""
+    stale: dict[str, list] = {}
+    for t in TREES:
+        stale |= {f"{version_prefix(ctx, n, t)}{s}": [] for s in tree_stems(target, version_prefix(ctx, n, t))}
+    if latest:
+        stale |= {f"{latest_prefix(ctx)}{s}": [] for s in _stems_written(ctx, target.uri)}
+    return stale
+
+
+def _page_files(ctx: Ctx, n: int, files: dict, latest: bool) -> dict[str, list[dict]]:
+    out = {f"{version_prefix(ctx, n, t)}{stem}": records for t in TREES for stem, records in files[t].items()}
+    if latest:
+        out |= {f"{latest_prefix(ctx)}{stem}": records for stem, records in files[RULE_MATCHED].items()}
+    return out
+
+
+def _write_tables(ctx: Ctx, gdir: str, pub: str, p: dict) -> dict:
+    """lineage.parquet and golden.parquet; returns what writing the lineage said (rows, sha256)."""
+    for r in p["lineage"]:
+        r["publication"] = pub
+    info = ctx.write_table(f"{gdir}/lineage.parquet", p["lineage"], model.LINEAGE, if_none_match=False)
+    ctx.write_table(f"{gdir}/golden.parquet", golden_rows(ctx, p["pages"]), model.GOLDEN, if_none_match=False)
+    return info
+
+
+def _dated(doc: dict, before: dict | None, published_at: str | None, note: dict | None) -> dict:
+    if published_at:
+        doc["published_at"] = published_at
+    if before:
+        doc["created_at"] = before.get("created_at") or before.get("published_at")
+    doc.setdefault("created_at", doc["published_at"])
+    if note:
+        doc.update(note)
+    return doc
+
+
+def _save_publication(ctx: Ctx, gdir: str, doc: dict, to: str, named: bool) -> None:
+    ctx.root.write_json(f"{gdir}/publication.json", doc)
+    entry = {"publication": doc["publication"], "path": gdir, "to": to, **({"trees": NAMED} if named else {})}
+    manifest.update(ctx.root, lambda m: manifest.add_unique(_golden_entries(ctx, m), entry,
+                                                              key=lambda g: g["publication"]))
+    ctx.invalidate()
+
+
+def publication_doc(ctx: Ctx, rv: Review, p: dict, pub: str, to: str, by: str, ok: bool, statuses: list[dict],
+                    info: dict, properties: list[str] | None = None, files: dict | None = None) -> dict:
+    """publication.json: which properties, extraction and ruleset were published, where to, and the gates."""
+    props = {r["property"]: r for r in property_rules(rv)}
+    chosen = properties if properties is not None else list(props)
+    return {"publication": pub, "properties": chosen, "approvals": _approval_counts(p["lineage"]),
+            "property_gate": [{k: props[x][k] for k in ("property", "ctdl_property", *GATE_FIELDS)}
+                              for x in chosen if x in props],
+            "identity_rules": [{k: s[k] for k in GATE_FIELDS} for s in statuses if s["kind"] in ("page", "locator")],
+            **_source_and_target(ctx, rv, by, to, files), **_contents(p, info), "format": PAGE_FORMAT,
+            "approval_gate": {"all_rules_approved": ok, "rules": [{k: s[k] for k in GATE_FIELDS} for s in statuses]}}
+
+
+def _approval_counts(lineage: list[dict]) -> dict:
+    counts: dict[str, Counter] = defaultdict(Counter)
+    for row in lineage:
+        counts[row["property"]][row["approval"]] += 1
+    return {"human": sum(c["human"] for c in counts.values()), "rule": sum(c["rule"] for c in counts.values()),
+            "by_property": {prop: {"human": c["human"], "rule": c["rule"]} for prop, c in counts.items()},
+            "meaning": APPROVAL_MEANING}
+
+
+def _source_and_target(ctx: Ctx, rv: Review, by: str, to: str, files: dict | None) -> dict:
+    n = rv.snap.ruleset_version
+    return {"catalog": ctx.catalog, "crawl": ctx.crawl, "extraction": rv.snap.ext, "ruleset_version": n,
+            "published_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "published_by": by, "to": to,
+            "to_prefix": latest_prefix(ctx), "version_prefix": version_prefix(ctx, n),
+            "trees": {t: {"prefix": version_prefix(ctx, n, t), "pages": len((files or {}).get(t, {}))} for t in TREES}}
+
+
+def _contents(p: dict, info: dict) -> dict:
+    return {"pages": len(p["pages"]), "page_stems": sorted(p["pages"]), "courses": p["courses"],
+            "records": p["records"], "lineage_rows": info["rows"], "lineage_sha256": info["sha256"],
+            "golden_record_id_collisions": p["collisions"],
+            "skipped_no_record_external_identifier": p["skipped_no_record_external_identifier"]}
+
+
+# -- one page, after a verdict --------------------------------------------------------------------------------
+def _create_golden(ctx: Ctx, reason: str, by: str, column: str | None) -> dict:
+    doc = publish(ctx, default_target(ctx), by, properties=[])
+    due = request_score(ctx, reason, [column] if column else None)
+    return {"publication": doc["publication"], "created": True, "files": doc["pages"], "due_at": due}
+
+
+def _rewrite_page(ctx: Ctx, n: int, doc: dict, stem: str) -> list[str]:
+    """The page's files in both trees of version `n` and at the latest location, rewritten where they changed."""
+    rv = LOADER.review(ctx, doc["extraction"])
+    files = trees({stem: plan(rv, set(doc["properties"]), stems={stem})["pages"].get(stem, [])})
+    target = open_root(doc["to"])
+    folders = ((f"{version_prefix(ctx, n, RULE_MATCHED)}{stem}", files[RULE_MATCHED].get(stem)),
+               (f"{version_prefix(ctx, n, HUMAN_REVIEWED)}{stem}", files[HUMAN_REVIEWED].get(stem)),
+               (f"{latest_prefix(ctx)}{stem}", files[RULE_MATCHED].get(stem)))
+    return [f"{folder}/{stem}.json" for folder, records in folders
+            if _rewrite_if_changed(ctx, target, folder, stem, records)]
+
+
+def _rewrite_if_changed(ctx: Ctx, target, folder: str, stem: str, records: list[dict] | None) -> bool:
+    try:
+        old = target.read_text(f"{folder}/{stem}.json")
+    except FileNotFoundError:
+        old = None
+    if old == (page_json(records) if records else None):
+        return False
+    _write_page(ctx, target, folder, records or [])
+    return True
+
+
+# -- after an approval ------------------------------------------------------------------------------------------
+def _version_properties(ctx: Ctx, n: int) -> tuple[list[str], bool]:
+    """The properties version `n` has now, and whether publishing creates it."""
+    try:
+        doc = ctx.read_json(f"{layout.golden_dir(ctx.catalog, ctx.crawl, ctx.cls, version_name(n))}/publication.json",
+                            immutable=False)
+    except FileNotFoundError:
+        return [], True
+    return doc.get("properties") or [], False
+
+
+def _columns_after_approval(rv: Review, prop: str, now: list[str], adds: list[str]) -> list[str]:
+    columns = set(now) | set(adds) | inherited_columns(rv.snap.ctx, rv.snap.ruleset_version)
+    return sorted(columns - (rv.withdrawn() - {prop}), key=lambda x: model.property_order(rv.snap.ctx.cls).get(x, 99))
+
+
+# -- backfill ---------------------------------------------------------------------------------------------------
+def _old_publications(ctx: Ctx) -> list[tuple[dict, set[str]]]:
+    """Publications from before versions, each with the properties its lineage has."""
     import pyarrow.parquet as pq
 
     old = []
@@ -675,79 +445,497 @@ def backfill(ctx: Ctx, to: str, log=print, again: bool = False) -> list[dict]:
         cols = set(pq.read_table(ctx.root.local_path(f"{g['path']}/lineage.parquet", mutable=True),
                                  columns=["property"]).column("property").to_pylist())
         old.append((d, cols))
+    return old
+
+
+def _by_ruleset(old: list[tuple[dict, set[str]]]) -> dict[int, list]:
     by_ruleset: dict[int, list] = defaultdict(list)
     for d, cols in sorted(old, key=lambda x: x[0].get("published_at") or ""):
         by_ruleset[d["ruleset_version"]].append((d, cols))
-    done = []
-    for _, items in sorted(by_ruleset.items()):
-        last = items[-1][0]
-        cols = sorted(set().union(*(c for _, c in items)), key=lambda x: model.property_order(ctx.cls).get(x, 99))
-        doc = publish(ctx, to, last["published_by"], allow_unapproved=True, properties=cols, ext=last["extraction"],
-                      published_at=last["published_at"], note={"backfilled_from": [d["publication"] for d, _ in items]})
-        log(f"{doc['publication']} ({', '.join(doc['properties'])}) from {', '.join(d['publication'] for d, _ in items)}: "
-            f"{doc['pages']:,} pages, {doc['records']:,} records, {doc['lineage_rows']:,} values "
-            f"({doc['approvals']['human']:,} human-reviewed)")
-        done.append(doc)
-    gone = {d["publication"] for d, _ in old}
+    return by_ruleset
 
+
+def _backfill_ruleset(ctx: Ctx, to: str, items: list[tuple[dict, set[str]]], log) -> dict:
+    last = items[-1][0]
+    cols = sorted(set().union(*(c for _, c in items)), key=lambda x: model.property_order(ctx.cls).get(x, 99))
+    doc = publish(ctx, to, last["published_by"], allow_unapproved=True, properties=cols, ext=last["extraction"],
+                  published_at=last["published_at"], note={"backfilled_from": [d["publication"] for d, _ in items]})
+    log(f"{doc['publication']} ({', '.join(doc['properties'])}) from {', '.join(d['publication'] for d, _ in items)}: "
+        f"{doc['pages']:,} pages, {doc['records']:,} records, {doc['lineage_rows']:,} values "
+        f"({doc['approvals']['human']:,} human-reviewed)")
+    return doc
+
+
+def _drop_golden_entries(ctx: Ctx, gone: set[str]) -> None:
     def change(m: dict) -> None:
         k = manifest.crawl_class(manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl), ctx.cls)
         k["golden"] = [g for g in k["golden"] if g["publication"] not in gone]
 
     manifest.update(ctx.root, change)
     ctx.invalidate()
-    if again:
-        for _, g in sorted(versions(ctx).items()):
-            if g["publication"] in {d["publication"] for d in done}:
-                continue
-            d = ctx.read_json(f"{g['path']}/publication.json", immutable=False)
-            doc = publish(ctx, to, d["published_by"], allow_unapproved=True, properties=d.get("properties") or [],
-                          ext=d["extraction"], published_at=d["published_at"],
-                          note={k: d[k] for k in ("backfilled_from",) if k in d})
-            log(f"{doc['publication']} ({', '.join(doc['properties'])}) written again: "
-                f"{doc['trees'][RULE_MATCHED]['pages']:,} rule-matched pages, "
-                f"{doc['trees'][HUMAN_REVIEWED]['pages']:,} human-reviewed, {doc['lineage_rows']:,} values "
-                f"({doc['approvals']['human']:,} human-reviewed)")
-            done.append(doc)
+
+
+def _write_versions_again(ctx: Ctx, to: str, skip: set[str], log) -> list[dict]:
+    done = []
+    for _, g in sorted(versions(ctx).items()):
+        if g["publication"] in skip:
+            continue
+        d = ctx.read_json(f"{g['path']}/publication.json", immutable=False)
+        doc = publish(ctx, to, d["published_by"], allow_unapproved=True, properties=d.get("properties") or [],
+                      ext=d["extraction"], published_at=d["published_at"],
+                      note={k: d[k] for k in ("backfilled_from",) if k in d})
+        log(f"{doc['publication']} ({', '.join(doc['properties'])}) written again: "
+            f"{doc['trees'][RULE_MATCHED]['pages']:,} rule-matched pages, "
+            f"{doc['trees'][HUMAN_REVIEWED]['pages']:,} human-reviewed, {doc['lineage_rows']:,} values "
+            f"({doc['approvals']['human']:,} human-reviewed)")
+        done.append(doc)
     return done
 
 
-def cmd_golden_publish(args) -> int:
-    import time
-
-    from .check import golden_file_checks
-    from .query import connect
-
-    ctx = Ctx.from_args(args)
-    t0 = time.perf_counter()
-    doc = publish(ctx, args.to or default_target(ctx), "golden-datasets golden publish", args.allow_unapproved,
-                  properties=args.property)
-    print(f"silver dataset {doc['publication']} ({', '.join(doc['properties'])}): {doc['pages']:,} pages, {doc['courses']:,} courses, "
-          f"{doc['records']:,} records, {doc['lineage_rows']:,} lineage rows → {doc['to']}/{doc['version_prefix']}"
-          f"{' and ' + doc['to_prefix'] if doc['latest'] else ''} ({time.perf_counter() - t0:.1f}s)")
-    if not doc["approval_gate"]["all_rules_approved"]:
-        print("  warning: published with --allow-unapproved; publication.json records approval_gate.all_rules_approved = false")
-    if doc["golden_record_id_collisions"]:
-        print(f"  golden_record_id collisions to confirm: {len(doc['golden_record_id_collisions'])} course codes")
-    return _report_checks(ctx, golden_file_checks, connect, {doc["publication"]})
-
-
-def _report_checks(ctx: Ctx, golden_file_checks, connect, pubs: set[str]) -> int:
-    results = golden_file_checks(Ctx(ctx.root, ctx.catalog, ctx.crawl, cls=ctx.cls),
-                                 connect(Ctx(ctx.root, ctx.catalog, ctx.crawl, cls=ctx.cls)))
-    mine = [r for r in results if r[2].split(":")[0] in pubs]
-    for r in mine:
-        print(f"  check: {r[2]} — {r[4]} rows, {r[3]} bad")
-    return 1 if any(r[3] for r in mine) else 0
+# =====================================================================================================
+# The plan: what a publication writes
+# =====================================================================================================
+def plan(rv: Review, properties: set[str] | None = None, stems: set[str] | None = None) -> dict:
+    """Everything a publication would write for these properties (None: all), without writing it. Human-reviewed
+    values are in it whatever their property. `stems`: only these pages (a verdict rewrites one page's file; working
+    out the whole catalog took ~10 s a verdict on Marshall). A page's rows get the same states either way: the rows
+    of other pages only re-attach annotations to their own course and page."""
+    ids, collisions = golden_record_ids(rv)
+    planning = _planning(rv, properties, stems)
+    book = _GoldenPages()
+    for key, o in _occurrences_in_page_order(rv.snap, stems):
+        gid = ids.get(key)
+        if gid is None:
+            book.skipped_no_key += 1
+            continue
+        fields, rows = _course_values(planning, key, o, gid)
+        if properties is None or fields:  # else nothing of the chosen properties for this course
+            book.add(o["page_stem"], gid, fields, rows)
+    return {"pages": dict(book.pages), "lineage": book.lineage, "collisions": collisions,
+            "skipped_no_record_external_identifier": book.skipped_no_key,
+            "courses": len({r["golden_record_id"] for r in book.lineage}), "records": sum(map(len, book.pages.values()))}
 
 
-def cmd_golden_backfill(args) -> int:
-    from .check import golden_file_checks
-    from .query import connect
+@dataclass
+class _Planning:
+    """What every course's values are planned with."""
+    rv: Review
+    properties: set[str] | None
+    place: dict            # property → its place in the class's order, read once (it checks the properties file)
+    annotation_ids: dict   # (rule, occurrence) → the annotations on it
+    states: dict           # rule → occurrence_key → its row's state
+    human_at: dict         # (rule, occurrence) → value_index → the expert's verdict that makes it human-reviewed
+    statuses: dict         # rule → its status (who approved it), for the properties asked for
+    answered: dict         # occurrence_key → rules with no found value that still publish a reviewer's answer
 
-    ctx = Ctx.from_args(args)
-    docs = backfill(ctx, args.to or default_target(ctx), again=getattr(args, "again", False))
-    if not docs:
-        print("nothing to backfill: every publication is a golden dataset version already")
-        return 0
-    return _report_checks(ctx, golden_file_checks, connect, {d["publication"] for d in docs})
+
+def _planning(rv: Review, properties: set[str] | None, stems: set[str] | None) -> _Planning:
+    planning = _Planning(rv, properties, model.property_order(rv.snap.ctx.cls), _annotation_ids(rv), {},
+                         defaultdict(dict), {}, {})
+    for rid, r in rv.snap.rules.items():
+        if r["kind"] == "property":
+            _review_rule(planning, rid, r, stems)
+    planning.answered = _answered(planning.states)
+    return planning
+
+
+def _annotation_ids(rv: Review) -> dict[tuple, list[str]]:
+    ids = defaultdict(list)
+    for e in rv.live:
+        t = e["target"]
+        if t.get("rule_id") and t.get("occurrence_key"):
+            ids[(t["rule_id"], t["occurrence_key"])].append(e["annotation_id"])
+    return ids
+
+
+def _review_rule(planning: _Planning, rid: str, rule: dict, stems: set[str] | None) -> None:
+    """Who approved each of the rule's values: an expert who confirmed it (on the Rules or Records tab), else the
+    rule's approval."""
+    rv = planning.rv
+    rows = rv.snap.rows(rid) if stems is None else rv.snap.rows_on(rid, stems)
+    states = rv.row_states(rid, rows, stems)
+    planning.states[rid] = {row["occurrence_key"]: states[row["key"]] for row in rows if row.get("occurrence_key")}
+    for row in rows:
+        _note_human(planning.human_at, rid, row, states[row["key"]])
+    if planning.properties is None or rule.get("property_label") in planning.properties:
+        # a rule's status needs every row's state (and is cached across Reviews): only the whole rule's states
+        planning.statuses[rid] = rv.rule_status(rid, states if stems is None else None)
+
+
+def _note_human(human_at: dict, rid: str, row: dict, st) -> None:
+    if row.get("items") is not None:  # a list: each item's own expert ✓ (property-rules spec §4.4)
+        for it in row["items"]:
+            x = st.items.get(norm(it["value"]))
+            if x is not None and x.human:
+                human_at[(rid, row["occurrence_key"])][it["value_index"]] = x.human
+    elif st.human:
+        human_at[(rid, row["occurrence_key"])][0] = st.human
+
+
+def _answered(states: dict[str, dict]) -> dict[str, set[str]]:
+    """The reviewers' answers (sme-fixes §5.4, §6, §7, golden_answers.py): the rows where the rule found nothing that
+    still publish something (a ✕ with an answer, a ✓ on "nothing found")."""
+    answered: dict[str, set[str]] = defaultdict(set)
+    for rid, by_occurrence in states.items():
+        for k, st in by_occurrence.items():
+            if golden_answers.wants_row(st):
+                answered[k].add(rid)
+    return answered
+
+
+def _occurrences_in_page_order(snap, stems: set[str] | None) -> list[tuple[str, dict]]:
+    occurrences = snap.occurrences.items() if stems is None else \
+        ((k, o) for k, o in snap.occurrences.items() if o["page_stem"] in stems)
+    return sorted(occurrences, key=lambda kv: (kv[1]["page_stem"], kv[1]["locator_index"]))
+
+
+def _course_values(planning: _Planning, key: str, o: dict, gid: str) -> tuple[list[dict], list[dict]]:
+    """One course's golden fields, and the lineage row of each."""
+    snap = planning.rv.snap
+    url = snap.page[o["page_stem"]]["url"]
+    fields, rows = [], []
+    for rid in _rules_with_values(planning, key):
+        rule = snap.rules[rid]
+        for g in _golden_values(planning, rid, rule, key, o):
+            approved = {k: g[k] for k in APPROVAL_FIELDS}
+            fields.append({"ctdl_property": rule.get("ctdl_property"), "property": rule["property_label"],
+                           "value": g["value"], **({"absent": True} if g.get("absent") else {}),
+                           "source_url": url, "location": g["location"], **approved})
+            rows.append(_lineage_row(planning, snap, rid, rule, key, o, gid, g) | approved)
+    return fields, rows
+
+
+def _rules_with_values(planning: _Planning, key: str) -> list[str]:
+    snap = planning.rv.snap
+    return sorted(set(snap.items_by_occ[key]) | planning.answered.get(key, set()), key=lambda rid: (
+        planning.place.get(snap.rules[rid].get("property_label"), 99), rid))
+
+
+def _golden_values(planning: _Planning, rid: str, rule: dict, key: str, o: dict):
+    status = planning.statuses.get(rid, {})
+    rule_ok = {"approval": "rule", "approved_by": status.get("approved_by"), "approved_at": status.get("approved_at")}
+    in_column = planning.properties is None or rule.get("property_label") in planning.properties
+    return golden_answers.fields(rule, planning.rv.snap.items_by_occ[key].get(rid, []),
+                                 planning.states.get(rid, {}).get(key), o["css_path"],
+                                 planning.human_at.get((rid, key), {}), rule_ok, in_column)
+
+
+def _lineage_row(planning: _Planning, snap, rid: str, rule: dict, key: str, o: dict, gid: str, g: dict) -> dict:
+    return {"golden_record_id": gid, "page_stem": o["page_stem"], "property": rule["property_label"],
+            "ctdl_property": rule.get("ctdl_property"), "extraction": snap.ext, "rule_id": rid,
+            "rule_version": rule["version"], "occurrence_key": key, "match_value_index": g["match_value_index"],
+            "annotation_ids": sorted(planning.annotation_ids.get((rid, key), []))}
+
+
+class _GoldenPages:
+    """The pages' records as they are planned, and their lineage."""
+
+    def __init__(self) -> None:
+        self.pages: dict[str, list[dict]] = defaultdict(list)
+        self.lineage: list[dict] = []
+        self.skipped_no_key = 0
+        self._used: Counter = Counter()  # (golden_record_id, page_stem, property) → values already published
+        self._seen: dict[tuple, list[dict]] = defaultdict(list)  # (page, golden_record_id) → its records there
+
+    def add(self, stem: str, gid: str, fields: list[dict], rows: list[dict]) -> None:
+        record = _record(gid, fields)
+        if any(r == record for r in self._seen[(stem, gid)]):
+            return  # the same course listed twice on a page with identical values: once is enough
+        self._seen[(stem, gid)].append(record)
+        # A second, different record with the same golden_record_id on the same page: its values get the next value_index.
+        for row in rows:
+            row["value_index"] = self._used[(gid, stem, row["property"])]
+            self._used[(gid, stem, row["property"])] += 1
+        self.pages[stem].append(record)
+        self.lineage.extend(rows)
+
+
+def golden_record_ids(rv: Review) -> tuple[dict[str, str], list[dict]]:
+    """occurrence_key → golden_record_id, and the collisions (codes whose course pages name different courses)."""
+    names, occ_name = _record_names(rv.snap)
+    variant, collisions = _name_variants(names)
+    ids = {key: variant.get((o["record_external_identifier"], _name_key(occ_name[key])), o["record_external_identifier"])
+           for key, o in rv.snap.occurrences.items() if o["record_external_identifier"] is not None}
+    return ids, collisions
+
+
+def _record_names(snap) -> tuple[dict[str, dict[str, str]], dict[str, str | None]]:
+    """Each occurrence's name, and each record's names on its own pages (normalized name → as shown)."""
+    full = properties.record_locator(snap.rules, snap.ctx.cls)
+    names: dict[str, dict[str, str]] = defaultdict(dict)
+    occ_name = {}
+    for o in snap.occurrences.values():
+        name = occ_name[o["occurrence_key"]] = _found_name(snap, o)
+        key = o["record_external_identifier"]
+        if key and o["locator_rule_id"] == full and name:
+            names[key].setdefault(_name_key(name), name)
+    return names, occ_name
+
+
+def _found_name(snap, o: dict) -> str | None:
+    name_rule = snap.name_rule.get(o["locator_rule_id"])
+    m = snap.matches_by_occ[o["occurrence_key"]].get(name_rule) if name_rule else None
+    return m["value"] if m and m["status"] == "found" else None
+
+
+def _name_variants(names: dict[str, dict[str, str]]) -> tuple[dict[tuple, str], list[dict]]:
+    """`<identifier>~<n>` for each name of an identifier whose pages name different courses, and those collisions."""
+    variant, collisions = {}, []
+    for ck, by_name in sorted(names.items()):
+        if len(by_name) > 1:
+            keys = sorted(by_name)
+            variant.update({(ck, k): f"{ck}~{i}" for i, k in enumerate(keys, 1)})
+            collisions.append({"record_external_identifier": ck,
+                               "golden_record_ids": [f"{ck}~{i}" for i in range(1, len(keys) + 1)],
+                               "names": [by_name[k] for k in keys]})
+    return variant, collisions
+
+
+def property_rules(rv: Review) -> list[dict]:
+    """Each property the property rules fill, with its rule and status (for the full courses' locator, i.e. the
+    course pages)."""
+    out = []
+    place, full = model.property_order(rv.snap.ctx.cls), properties.record_locator(rv.snap.rules, rv.snap.ctx.cls)
+    for rid, r in sorted(rv.snap.rules.items(), key=lambda kv: (place.get(kv[1].get("property_label"), 99), kv[0])):
+        if r["kind"] != "property" or r["definition"].get("locator") != full:
+            continue
+        st = rv.rule_status(rid)
+        out.append({"property": r["property_label"], "ctdl_property": r.get("ctdl_property"), "rule_id": rid,
+                    "version": r["version"], "status": st["status"], "approved_by": st.get("approved_by")})
+    return out
+
+
+# =====================================================================================================
+# Trees, files and what was published
+# =====================================================================================================
+def trees(pages: dict[str, list[dict]]) -> dict[str, dict[str, list[dict]]]:
+    """{tree: pages}: the human-reviewed tree is the `approval: human` subset of the rule-matched one."""
+    rule, _ = tree_pages(pages, RULE_MATCHED)
+    return {RULE_MATCHED: rule, HUMAN_REVIEWED: tree_pages(rule, HUMAN_REVIEWED)[0]}
+
+
+def tree_pages(pages: dict[str, list[dict]], tree: str) -> tuple[dict[str, list[dict]], list[dict]]:
+    """The pages as one tree holds them (`rule-matched`: every value with a CTDL term; `human-reviewed`: only the
+    `approval: human` ones), and the pages left out (with why). The scorer pairs a page's records with the extract's
+    by position and rejects a record with no values: trailing empty records are dropped, and a page whose empty record
+    comes before a non-empty one is left out."""
+    out, left_out = {}, []
+    for stem, records in pages.items():
+        recs = _tree_records(records, tree)
+        if not recs:
+            continue
+        if any(not r["fields"] for r in recs):
+            why = "rule-matched" if tree == RULE_MATCHED else "human-reviewed"
+            left_out.append({"stem": stem, "why": f"an earlier course on the page has no {why} values"})
+            continue
+        out[stem] = recs
+    return out, left_out
+
+
+def _tree_records(records: list[dict], tree: str) -> list[dict]:
+    """The page's records with the tree's values only, trailing empty records dropped."""
+    recs = [_record(r.get("golden_record_id"),
+                    [f for f in r.get("fields", [])
+                     if f.get("ctdl_property") and (tree == RULE_MATCHED or f.get("approval") == "human")])
+            for r in records]
+    while recs and not recs[-1]["fields"]:
+        recs.pop()
+    return recs
+
+
+def tree_stems(target, prefix: str) -> list[str]:
+    """The pages that have a file below `prefix`."""
+    prefix = prefix.rstrip("/")
+    out = []
+    for p in target.list(prefix):
+        parts = p[len(prefix) + 1:].split("/")
+        if len(parts) == 2 and parts[1] == f"{parts[0]}.json":
+            out.append(parts[0])
+    return out
+
+
+def golden_rows(ctx: Ctx, pages: dict[str, list[dict]]) -> list[dict]:
+    """golden.parquet: one row per value of the page files."""
+    out = []
+    for stem, records in sorted(pages.items()):
+        index: Counter = Counter()  # value_index per (golden_record_id, property) across the page's records
+        for rec in records:
+            for f in rec["fields"]:
+                k = (rec["golden_record_id"], f["property"])
+                out.append(_golden_row(ctx, stem, rec["golden_record_id"], f, index[k]))
+                index[k] += 1
+    return out
+
+
+def _golden_row(ctx: Ctx, stem: str, gid: str, f: dict, value_index: int) -> dict:
+    is_object = isinstance(f["value"], dict)  # a list of objects' object (§5.4): JSON text, its key field's place
+    loc = f["location"]
+    if is_object and loc:
+        loc = next(iter(loc.values()), None)
+    return {"catalog": ctx.catalog, "crawl": ctx.crawl, "stem": stem, "golden_record_id": gid,
+            "property": f["property"], "ctdl_property": f["ctdl_property"], "value_index": value_index,
+            "value": model.canon(f["value"]) if is_object else f["value"],
+            "source_url": f["source_url"], "location": loc, "approval": f["approval"],
+            "approved_by": f["approved_by"], "approved_at": f["approved_at"]}
+
+
+def _write_page(ctx: Ctx, target, folder: str, records: list[dict]) -> None:
+    """One page's file in `folder` (`…/<stem>`), or none when it has no records. The page's HTML goes only to the
+    latest location; version trees are JSON only."""
+    stem = folder.rsplit("/", 1)[1]
+    html = f"{folder}/{stem}.html" if folder.startswith(latest_prefix(ctx)) else None
+    if records:
+        target.write_text(f"{folder}/{stem}.json", page_json(records))
+        if html:
+            _copy_html(ctx, target, html, stem)
+    else:
+        target.delete(f"{folder}/{stem}.json")
+        if html:
+            target.delete(html)
+
+
+def _copy_html(ctx: Ctx, target, path: str, stem: str) -> None:
+    if target.stat(path) is not None:
+        return
+    src = layout.page_html(ctx.catalog, ctx.crawl, stem)
+    crawls = ctx.crawl_root
+    if isinstance(target, AzureRoot) and isinstance(crawls, AzureRoot) and target.account == crawls.account:
+        target.copy_from_url(path, crawls.blob_url_with_sas(src))  # server-side, nothing downloaded
+    else:
+        target.write_file(path, ctx.page_path(stem))
+
+
+def page_json(records: list[dict]) -> str:
+    """The text of one <page_stem>.json, exactly as written."""
+    return json.dumps(records, indent=2, ensure_ascii=False) + "\n"
+
+
+def published_properties(ctx: Ctx, to: str) -> dict[str, dict]:
+    """property → the latest publication to `to` that published it (publications before per-property publishing
+    published every property)."""
+    out: dict[str, dict] = {}
+    for d in sorted(_publications_to(ctx, to), key=lambda d: d.get("published_at") or ""):
+        for prop in _published_in(d):
+            gate = next((r for r in d.get("property_gate", []) if r["property"] == prop), {})
+            out[prop] = {"publication": d["publication"], "published_at": d.get("published_at"),
+                         "published_by": d.get("published_by"), "extraction": d.get("extraction"),
+                         "rule_version": gate.get("version")}
+    return out
+
+
+def _published_in(d: dict) -> list[str]:
+    return d.get("properties") or [r["property"] for r in d.get("property_gate", [])] \
+        or list(model.FIRST_EIGHT_ORDER)  # before the property list: the eight
+
+
+def _stems_written(ctx: Ctx, to: str) -> set[str]:
+    """Pages any publication to `to` wrote at the latest location."""
+    return {stem for d in _publications_to(ctx, to) for stem in d.get("page_stems", [])}
+
+
+def _publications_to(ctx: Ctx, to: str) -> list[dict]:
+    """publication.json of every publication to `to` the manifest lists (those still there)."""
+    docs = []
+    for g in ctx.crawl_class().get("golden", []):
+        if g.get("to", "").rstrip("/") == to.rstrip("/"):
+            try:
+                docs.append(ctx.read_json(f"{g['path']}/publication.json", immutable=False))
+            except FileNotFoundError:
+                continue
+    return docs
+
+
+def inherited_columns(ctx: Ctx, ruleset_version: int) -> set[str]:
+    """The columns (properties) published in the golden datasets of earlier rulesets: every later version has them
+    too, its values from its own ruleset's extraction (columns only grow, Evals spec §1 rows 3, 16)."""
+    out: set[str] = set()
+    for v, g in versions(ctx).items():
+        if v < ruleset_version:
+            try:
+                out |= set(ctx.read_json(f"{g['path']}/publication.json", immutable=False).get("properties") or [])
+            except FileNotFoundError:
+                continue
+    return out
+
+
+def versions(ctx: Ctx) -> dict[int, dict]:
+    """ruleset version → its golden dataset's manifest entry ({publication, path, to})."""
+    out = {}
+    for g in ctx.crawl_class().get("golden", []):
+        m = VERSION.match(g["publication"])
+        if m:
+            out[int(m.group(1))] = g
+    return out
+
+
+# =====================================================================================================
+# Paths and names
+# =====================================================================================================
+def default_target(ctx: Ctx) -> str:
+    """Where the Studio publishes: GOLDEN_DATASETS_GOLDEN_ROOT if set (a local folder or a scratch prefix); else, for
+    a local Studio root, the folder `golden` beside it (so development never writes to the shared container); else
+    the xtra-golden-sets container."""
+    if os.environ.get("GOLDEN_DATASETS_GOLDEN_ROOT"):
+        return os.environ["GOLDEN_DATASETS_GOLDEN_ROOT"]
+    if isinstance(ctx.root, LocalRoot):
+        return str(Path(ctx.root.base).parent / "golden")
+    return GOLDEN_CONTAINER
+
+
+def version_root(ctx: Ctx, ruleset_version: int, tree: str = RULE_MATCHED) -> str:
+    """What `xtra score --baseline-uri` points at (below the golden root) to score one tree of a version."""
+    folder = TREE_DIRS[tree] if named_trees(ctx, ruleset_version) else tree
+    return f"{class_prefix(ctx)}catalogs/{ctx.catalog}/versions/{version_name(ruleset_version)}/{folder}"
+
+
+def version_prefix(ctx: Ctx, ruleset_version: int, tree: str = RULE_MATCHED) -> str:
+    return f"{version_root(ctx, ruleset_version, tree)}/{ctx.catalog}/{ctx.crawl}/"
+
+
+def latest_prefix(ctx: Ctx) -> str:
+    return f"{class_prefix(ctx)}{ctx.catalog}/{ctx.crawl}/"
+
+
+def class_prefix(ctx: Ctx) -> str:
+    """A class's part of the golden root: Course keeps the paths xtra-cli reads today; every other class sits under
+    its own folder, so its page files never meet Course's (`learningprogram/<catalog>/<crawl>/…`)."""
+    return "" if ctx.cls == "course" else f"{ctx.cls}/"
+
+
+def named_trees(ctx: Ctx, ruleset_version: int) -> bool:
+    """Whether this version's trees are stored as golden/ and silver/ (a version not written yet will be)."""
+    g = versions(ctx).get(ruleset_version)
+    return g is None or g.get("trees") == NAMED
+
+
+def version_name(ruleset_version: int) -> str:
+    return f"ruleset-v{ruleset_version}"
+
+
+def column_name(prop: str, cls: str = "course") -> str | None:
+    """A property's column: its CTDL path without prefixes (None for one with no CTDL term, e.g. Learning Type)."""
+    term = model.ctdl_term(cls).get(prop)
+    return ">".join(t.split(":", 1)[-1] for t in term.split(">")) if term else None
+
+
+def columns_of(props: list[str], cls: str = "course") -> list[str]:
+    """The columns of these properties, in display order; properties with no CTDL term aren't columns."""
+    return [c for c in (column_name(p, cls) for p in sorted(props, key=lambda x: model.property_order(cls).get(x, 99))) if c]
+
+
+def record_approval(fields: list[dict]) -> str:
+    """A record's approval from its fields': human (every value confirmed by a person), rule (none), or mixed."""
+    kinds = {f.get("approval", "rule") for f in fields}
+    return "human" if kinds == {"human"} else "rule" if kinds <= {"rule"} else "mixed"
+
+
+def _record(gid: str, fields: list[dict]) -> dict:
+    return {"golden_record_id": gid, "approval": record_approval(fields), "fields": fields}
+
+
+def _golden_entries(ctx: Ctx, m: dict) -> list[dict]:
+    return manifest.crawl_class(manifest.crawl_entry(manifest.catalog_entry(m, ctx.catalog), ctx.crawl), ctx.cls)["golden"]
+
+
+def _name_key(v: str | None) -> str:
+    return re.sub(r"\s+", " ", v or "").strip().lower()

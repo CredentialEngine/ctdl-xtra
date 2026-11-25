@@ -34,48 +34,6 @@ FULL_NAMES = {"Jared": "Jared Diener", "Cadence": "Cadence Calixto", "Nicholas":
               "Rohit": "Rohit Joy", "Eric": "Eric Riddoch", "Seth": "Seth Alt"}
 
 
-def new_id(prefix: str = "an") -> str:
-    return f"{prefix}-{uuid.uuid4().hex[:12]}"
-
-
-def validate(event: dict) -> None:
-    if event.get("type") not in EVENT_TYPES:
-        raise ValueError(f"event type must be one of {sorted(EVENT_TYPES)}")
-    if event["type"] == "verdict" and event.get("verdict") not in VERDICTS:
-        raise ValueError(f"verdict must be one of {sorted(VERDICTS)}")
-    if event["type"] != "verdict" and event.get("verdict") is not None:
-        raise ValueError("only verdict events carry a verdict")
-    target = event.get("target") or {}
-    if target.get("kind") not in TARGET_KINDS:
-        raise ValueError(f"target.kind must be one of {sorted(TARGET_KINDS)}")
-    if target["kind"] == "ruleset" and event["type"] != "comment":
-        raise ValueError("only comments target the ruleset")
-    if event["type"] == "reset" and (target["kind"] != "rule" or not (event.get("note") or "").strip()):
-        raise ValueError("a reset targets a rule and says why (note)")
-    if event.get("topic") is not None and (event["type"] != "comment" or event["topic"] not in TOPICS):
-        raise ValueError(f"topic is for comments, one of {sorted(TOPICS)}")
-    if event["type"] == "verdict" and event["verdict"] == "missing" and target["kind"] not in ("occurrence", "page") \
-            and not (target["kind"] == "match" and target.get("item")):
-        raise ValueError("'missing' applies only to record locators (occurrence), page rules (page) and a list's "
-                         "items (match, item)")
-    if event.get("author_role") is not None and event["author_role"] not in AUTHOR_ROLES:
-        raise ValueError(f"author_role must be one of {sorted(AUTHOR_ROLES)}")
-    if event.get("reasons") is not None and (event.get("verdict") != "wrong" or not isinstance(event["reasons"], list)
-                                             or not set(event["reasons"]) <= REASONS):
-        raise ValueError(f"reasons go on a wrong verdict, a list of {sorted(REASONS)}")
-    for seg in (event.get("expected") or {}).get("segments") or []:
-        if seg.get("polarity", "in") not in POLARITIES:
-            raise ValueError(f"a segment's polarity must be one of {sorted(POLARITIES)}")
-    anchor = event.get("anchor")
-    if anchor is not None and (event["type"] != "comment" or not isinstance(anchor, dict) or not anchor.get("css_path")):
-        raise ValueError("anchor is for comments: {css_path, char_start, char_end, text}")
-    if event.get("compared_with") is not None and not isinstance(event["compared_with"], dict):
-        raise ValueError("compared_with must be an object")
-    for key in ("annotation_id", "at", "author"):
-        if not event.get(key):
-            raise ValueError(f"event needs {key}")
-
-
 class AnnotationLog:
     """One catalog's log. `events()` returns every event, reading only the bytes appended since the last call."""
 
@@ -85,6 +43,10 @@ class AnnotationLog:
         self._partial = b""
         self._events: list[dict] = []
         self._lock = threading.Lock()
+
+    def events(self) -> list[dict]:
+        self.refresh()
+        return list(self._events)
 
     def refresh(self) -> int:
         """Read what was appended since the last read. Returns how many new events arrived."""
@@ -99,10 +61,6 @@ class AnnotationLog:
             new = [json.loads(line) for line in lines if line.strip()]
             self._events.extend(new)
             return len(new)
-
-    def events(self) -> list[dict]:
-        self.refresh()
-        return list(self._events)
 
     @property
     def offset(self) -> int:
@@ -119,3 +77,74 @@ class AnnotationLog:
         if events:
             data = "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in events).encode("utf-8")
             self.root.append(self.path, data)
+
+
+def validate(event: dict) -> None:
+    """Raise ValueError at the first thing wrong with an event, in this order."""
+    check_type(event)
+    target = event.get("target") or {}
+    check_target(event, target)
+    check_topic(event)
+    check_missing(event, target)
+    check_author_role(event)
+    check_answer(event)
+    check_comment_extras(event)
+    for key in ("annotation_id", "at", "author"):
+        if not event.get(key):
+            raise ValueError(f"event needs {key}")
+
+
+def check_type(event: dict) -> None:
+    if event.get("type") not in EVENT_TYPES:
+        raise ValueError(f"event type must be one of {sorted(EVENT_TYPES)}")
+    if event["type"] == "verdict" and event.get("verdict") not in VERDICTS:
+        raise ValueError(f"verdict must be one of {sorted(VERDICTS)}")
+    if event["type"] != "verdict" and event.get("verdict") is not None:
+        raise ValueError("only verdict events carry a verdict")
+
+
+def check_target(event: dict, target: dict) -> None:
+    if target.get("kind") not in TARGET_KINDS:
+        raise ValueError(f"target.kind must be one of {sorted(TARGET_KINDS)}")
+    if target["kind"] == "ruleset" and event["type"] != "comment":
+        raise ValueError("only comments target the ruleset")
+    if event["type"] == "reset" and (target["kind"] != "rule" or not (event.get("note") or "").strip()):
+        raise ValueError("a reset targets a rule and says why (note)")
+
+
+def check_topic(event: dict) -> None:
+    if event.get("topic") is not None and (event["type"] != "comment" or event["topic"] not in TOPICS):
+        raise ValueError(f"topic is for comments, one of {sorted(TOPICS)}")
+
+
+def check_missing(event: dict, target: dict) -> None:
+    if event["type"] == "verdict" and event["verdict"] == "missing" and target["kind"] not in ("occurrence", "page") \
+            and not (target["kind"] == "match" and target.get("item")):
+        raise ValueError("'missing' applies only to record locators (occurrence), page rules (page) and a list's "
+                         "items (match, item)")
+
+
+def check_author_role(event: dict) -> None:
+    if event.get("author_role") is not None and event["author_role"] not in AUTHOR_ROLES:
+        raise ValueError(f"author_role must be one of {sorted(AUTHOR_ROLES)}")
+
+
+def check_answer(event: dict) -> None:
+    if event.get("reasons") is not None and (event.get("verdict") != "wrong" or not isinstance(event["reasons"], list)
+                                             or not set(event["reasons"]) <= REASONS):
+        raise ValueError(f"reasons go on a wrong verdict, a list of {sorted(REASONS)}")
+    for seg in (event.get("expected") or {}).get("segments") or []:
+        if seg.get("polarity", "in") not in POLARITIES:
+            raise ValueError(f"a segment's polarity must be one of {sorted(POLARITIES)}")
+
+
+def check_comment_extras(event: dict) -> None:
+    anchor = event.get("anchor")
+    if anchor is not None and (event["type"] != "comment" or not isinstance(anchor, dict) or not anchor.get("css_path")):
+        raise ValueError("anchor is for comments: {css_path, char_start, char_end, text}")
+    if event.get("compared_with") is not None and not isinstance(event["compared_with"], dict):
+        raise ValueError("compared_with must be an object")
+
+
+def new_id(prefix: str = "an") -> str:
+    return f"{prefix}-{uuid.uuid4().hex[:12]}"

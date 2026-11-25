@@ -47,6 +47,15 @@ AZURITE_CONNECTION = (
 APPEND_BLOCK = 4 * 1024 * 1024
 
 
+def open_root(uri: str | Path | Root) -> Root:
+    if isinstance(uri, Root):
+        return uri
+    uri = str(uri)
+    if uri.startswith("azure://"):
+        return AzureRoot(uri)
+    return LocalRoot(uri)
+
+
 def cache_home() -> Path:
     return Path(os.environ.get("GOLDEN_DATASETS_CACHE", Path.home() / ".cache" / "golden-datasets"))
 
@@ -56,13 +65,6 @@ class Stat:
     etag: str
     size: int
     modified: datetime | None = None  # last modified (UTC)
-
-
-def _clean(path: str) -> str:
-    path = path.strip("/")
-    if any(part in ("..", "") for part in path.split("/")) and path:
-        raise ValueError(f"bad storage path: {path!r}")
-    return path
 
 
 class Root:
@@ -293,32 +295,38 @@ def sas_env(container: str) -> str:
 
 class AzureRoot(Root):
     def __init__(self, uri: str):
-        from azure.storage.blob import BlobServiceClient
-
         self.uri = uri.rstrip("/")
         url = urlparse(uri[len("azure://"):])
         parts = [p for p in url.path.split("/") if p]
-        account = conn = None
-        if url.hostname in ("127.0.0.1", "localhost"):  # Azurite: /<account>/<container>/<prefix>
+        azurite = url.hostname in ("127.0.0.1", "localhost")
+        if azurite:  # /<account>/<container>/<prefix>
             account, parts = parts[0], parts[1:]
-            conn = os.environ.get("AZURE_STORAGE_CONNECTION_STRING") or AZURITE_CONNECTION
-            if "devstoreaccount1" not in conn and account == "devstoreaccount1":
-                conn = AZURITE_CONNECTION
         if not parts:
             raise UserError(f"{uri}: no container in the URI")
-        self.account = account if url.hostname in ("127.0.0.1", "localhost") else url.hostname.split(".")[0]
+        self.account = account if azurite else url.hostname.split(".")[0]
         self.container_name, self.prefix = parts[0], "/".join(parts[1:])
-        sas = os.environ.get(sas_env(self.container_name))
-        if sas and url.hostname not in ("127.0.0.1", "localhost"):
-            self.service = BlobServiceClient(f"https://{url.hostname}", credential=sas.lstrip("?"))
-        else:
-            if url.hostname not in ("127.0.0.1", "localhost"):
-                conn = os.environ.get("AZURE_STORAGE_CONNECTION_STRING") or _az_connection_string(self.account)
-            self.service = BlobServiceClient.from_connection_string(conn)
+        self.service = self._azurite_service() if azurite else self._azure_service(url.hostname)
         self.container = self.service.get_container_client(self.container_name)
         self.cache = cache_home() / hashlib.sha256(self.uri.encode()).hexdigest()[:16]
         self._dl_locks: dict[str, threading.Lock] = {}
         self._dl_guard = threading.Lock()
+
+    def _azurite_service(self):
+        from azure.storage.blob import BlobServiceClient
+
+        conn = os.environ.get("AZURE_STORAGE_CONNECTION_STRING") or AZURITE_CONNECTION
+        if "devstoreaccount1" not in conn and self.account == "devstoreaccount1":
+            conn = AZURITE_CONNECTION
+        return BlobServiceClient.from_connection_string(conn)
+
+    def _azure_service(self, hostname: str):
+        from azure.storage.blob import BlobServiceClient
+
+        sas = os.environ.get(sas_env(self.container_name))
+        if sas:
+            return BlobServiceClient(f"https://{hostname}", credential=sas.lstrip("?"))
+        conn = os.environ.get("AZURE_STORAGE_CONNECTION_STRING") or _az_connection_string(self.account)
+        return BlobServiceClient.from_connection_string(conn)
 
     def _name(self, path: str) -> str:
         path = _clean(path)
@@ -390,51 +398,56 @@ class AzureRoot(Root):
     @telemetry.storage_op("local_path", call_span=False)
     def local_path(self, path: str, mutable: bool = False) -> Path:
         dest = self.cache / _clean(path)
-        etag_file = dest.with_name(dest.name + ".etag")
-        with self._dl_guard:
-            lock = self._dl_locks.setdefault(path, threading.Lock())
-        with lock:
-            if dest.exists() and not mutable:
-                return dest
-            if dest.exists() and mutable:
-                st = self.stat(path)
-                if st is None:
-                    raise FileNotFoundError(f"{self.uri}/{path}")
-                if etag_file.exists() and etag_file.read_text() == st.etag:
-                    return dest
-            from azure.core.exceptions import ResourceNotFoundError
-
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            fd, tmp = tempfile.mkstemp(dir=dest.parent, prefix=f".{dest.name}.")
-            try:
-                with os.fdopen(fd, "wb") as fh, telemetry.azure_call(self, "download", path) as call:
-                    downloader = self._blob(path).download_blob(max_concurrency=4)
-                    size = downloader.readinto(fh)
-                    telemetry.count("stats.storage.azure.downloads")
-                    telemetry.count("stats.storage.azure.bytes_downloaded", size)
-                    if call is not None:
-                        call.set_attribute("ce.storage.bytes", size)
-                os.replace(tmp, dest)
-            except ResourceNotFoundError:
-                os.unlink(tmp)
-                raise FileNotFoundError(f"{self.uri}/{path}") from None
-            etag_file.write_text(downloader.properties.etag)
+        with self._download_lock(path):
+            if not (dest.exists() and self._still_current(path, dest, mutable)):
+                self._download(path, dest)
             return dest
+
+    def _download_lock(self, path: str) -> threading.Lock:
+        with self._dl_guard:
+            return self._dl_locks.setdefault(path, threading.Lock())
+
+    def _still_current(self, path: str, dest: Path, mutable: bool) -> bool:
+        """An immutable file once downloaded always is; a mutable one while its ETag hasn't changed."""
+        if not mutable:
+            return True
+        st = self.stat(path)
+        if st is None:
+            raise FileNotFoundError(f"{self.uri}/{path}")
+        etag_file = _etag_file(dest)
+        return etag_file.exists() and etag_file.read_text() == st.etag
+
+    def _download(self, path: str, dest: Path) -> None:
+        from azure.core.exceptions import ResourceNotFoundError
+
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=dest.parent, prefix=f".{dest.name}.")
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                downloader = self._download_into(fh, path)
+            os.replace(tmp, dest)
+        except ResourceNotFoundError:
+            os.unlink(tmp)
+            raise FileNotFoundError(f"{self.uri}/{path}") from None
+        _etag_file(dest).write_text(downloader.properties.etag)
+
+    def _download_into(self, fh, path: str):
+        with telemetry.azure_call(self, "download", path) as call:
+            downloader = self._blob(path).download_blob(max_concurrency=4)
+            size = downloader.readinto(fh)
+            telemetry.count("stats.storage.azure.downloads")
+            telemetry.count("stats.storage.azure.bytes_downloaded", size)
+            if call is not None:
+                call.set_attribute("ce.storage.bytes", size)
+        return downloader
 
     @telemetry.storage_op("write")
     def write_bytes(self, path: str, data: bytes, *, if_match: str | None = None,
                     if_none_match: bool = False) -> str:
-        from azure.core import MatchConditions
         from azure.core.exceptions import ResourceExistsError, ResourceModifiedError
-        from azure.storage.blob import ContentSettings
 
-        kw: dict = {"overwrite": True, "content_settings": ContentSettings(content_type=_content_type(path))}
-        if if_none_match:
-            kw.update(overwrite=False)
-        elif if_match is not None:
-            kw.update(etag=if_match, match_condition=MatchConditions.IfNotModified)
         try:
-            resp = self._blob(path).upload_blob(data, **kw)
+            resp = self._blob(path).upload_blob(data, **_upload_options(path, if_match, if_none_match))
         except (ResourceExistsError, ResourceModifiedError) as exc:
             raise ConflictError(f"{path}: {type(exc).__name__}") from None
         except Exception as exc:  # if_match on a missing blob → 404 / 412
@@ -477,15 +490,7 @@ class AzureRoot(Root):
         except HttpResponseError as exc:
             if "InvalidBlobType" not in str(exc):
                 raise
-            # A block blob (e.g. copied by a tool that doesn't know about append blobs): convert it once.
-            old = blob.download_blob().readall()
-            etag = blob.get_blob_properties().etag
-            from azure.core import MatchConditions
-
-            blob.delete_blob(etag=etag, match_condition=MatchConditions.IfNotModified)
-            blob.create_append_blob()
-            if old:
-                blob.append_block(old)
+            _make_append_blob(blob)
             resp = blob.append_block(data)
         return int(resp["blob_append_offset"]) + len(data)
 
@@ -522,10 +527,36 @@ def _content_type(path: str) -> str:
         ext, "application/octet-stream")
 
 
-def open_root(uri: str | Path | Root) -> Root:
-    if isinstance(uri, Root):
-        return uri
-    uri = str(uri)
-    if uri.startswith("azure://"):
-        return AzureRoot(uri)
-    return LocalRoot(uri)
+def _upload_options(path: str, if_match: str | None, if_none_match: bool) -> dict:
+    from azure.core import MatchConditions
+    from azure.storage.blob import ContentSettings
+
+    options: dict = {"overwrite": True, "content_settings": ContentSettings(content_type=_content_type(path))}
+    if if_none_match:
+        options.update(overwrite=False)
+    elif if_match is not None:
+        options.update(etag=if_match, match_condition=MatchConditions.IfNotModified)
+    return options
+
+
+def _make_append_blob(blob) -> None:
+    """A block blob (e.g. copied by a tool that doesn't know about append blobs): convert it once."""
+    from azure.core import MatchConditions
+
+    old = blob.download_blob().readall()
+    etag = blob.get_blob_properties().etag
+    blob.delete_blob(etag=etag, match_condition=MatchConditions.IfNotModified)
+    blob.create_append_blob()
+    if old:
+        blob.append_block(old)
+
+
+def _etag_file(dest: Path) -> Path:
+    return dest.with_name(dest.name + ".etag")
+
+
+def _clean(path: str) -> str:
+    path = path.strip("/")
+    if any(part in ("..", "") for part in path.split("/")) and path:
+        raise ValueError(f"bad storage path: {path!r}")
+    return path

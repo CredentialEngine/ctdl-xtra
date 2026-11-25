@@ -24,72 +24,6 @@ from .state import REQUEST_CLASS, studio
 router = APIRouter(prefix="/api")
 
 
-def _cls(cls: str) -> str:
-    try:
-        return classes.get(cls).slug
-    except UserError as e:
-        raise HTTPException(422, str(e)) from None
-
-
-def _root(request: Request):
-    return studio(request).root
-
-
-def _role(request: Request, author: str) -> str | None:
-    return findings_role(_root(request), author)
-
-
-def findings_role(root, author: str) -> str | None:
-    try:
-        return roles(root).get(author)
-    except FileNotFoundError:
-        return None
-
-
-def _newest(st, ctx, basis: str) -> str | None:
-    """The score a finding's units are counted in: the latest extract output's against the latest golden dataset,
-    else the newest finished score on that basis (an output not scored yet doesn't zero every finding)."""
-    sc = scores.latest_score(ctx, basis, st.cache)
-    if sc:
-        return sc["id"]
-    for sid in reversed(scores.score_ids(ctx)):
-        doc = scores.read(ctx, sid)
-        if doc["status"] == "done" and (doc.get("results") or {}).get(basis):
-            return sid
-    return None
-
-
-def _live(request: Request, cls: str, column: str, links: list[dict]) -> dict | None:
-    """The units a finding's linked groups have in each catalog's latest score: {outcome: [golden, silver]} and the
-    rows by catalog. None when it links no group."""
-    if not links:
-        return None
-    st = studio(request)
-    totals = {o: [0, 0] for o in findings.COUNTED}
-    rows = []
-    for link in links:
-        got = [0, 0]
-        try:
-            ctx = st.ctx(resolve(link["catalog"]), cls)
-        except (UserError, KeyError):
-            continue
-        for i, basis in enumerate(("human", "rule")):
-            sid = _newest(st, ctx, basis)
-            if not sid:
-                continue
-            doc = scores.read(ctx, sid)
-            mine = [r for r in _rows(request, ctx, doc, sid) if r["basis"] == basis and r["column"] == column]
-            for g in scores.wrong_groups(mine, link.get("group_by") or "auto"):
-                if findings.link_key({**g, "catalog": link["catalog"]}) == findings.link_key(link):
-                    got[i] = g["units"]
-        if link.get("outcome") in totals:
-            totals[link["outcome"]] = [totals[link["outcome"]][0] + got[0], totals[link["outcome"]][1] + got[1]]
-        rows.append({"catalog": link["catalog"], "outcome": link.get("outcome"), "by": link.get("by"),
-                     "key": link.get("key"), "golden": got[0], "silver": got[1]})
-    return {"counts": {o: (v if v != [0, 0] or any(r["outcome"] == o for r in rows) else None)
-                       for o, v in totals.items()}, "rows": rows}
-
-
 @router.get("/properties/{cls}/{column}/review")
 def review(request: Request, cls: str, column: str) -> dict:
     cls = _cls(cls)
@@ -114,16 +48,6 @@ def set_status(request: Request, cls: str, column: str, body: Annotated[dict, Bo
         return findings.set_status(_root(request), cls, column, body.get("status"), author, _role(request, author))
     except PermissionError as e:
         raise HTTPException(403, str(e)) from None
-    except UserError as e:
-        raise HTTPException(422, str(e)) from None
-
-
-def _save(request: Request, cls: str, column: str, body: dict, finding_id: str | None) -> dict:
-    cls = _cls(cls)
-    try:
-        return findings.save_finding(_root(request), cls, column, body.get("author") or "", body, finding_id)
-    except KeyError:
-        raise HTTPException(404, f"no finding {finding_id}") from None
     except UserError as e:
         raise HTTPException(422, str(e)) from None
 
@@ -159,3 +83,93 @@ def comment(request: Request, cls: str, column: str, body: Annotated[dict, Body(
 @router.get("/property-status")
 def property_status(request: Request) -> dict:
     return findings.statuses(_root(request), REQUEST_CLASS.get())
+
+
+def _save(request: Request, cls: str, column: str, body: dict, finding_id: str | None) -> dict:
+    cls = _cls(cls)
+    try:
+        return findings.save_finding(_root(request), cls, column, body.get("author") or "", body, finding_id)
+    except KeyError:
+        raise HTTPException(404, f"no finding {finding_id}") from None
+    except UserError as e:
+        raise HTTPException(422, str(e)) from None
+
+
+# --- A finding's live units -------------------------------------------------------------------------------------
+
+
+def _live(request: Request, cls: str, column: str, links: list[dict]) -> dict | None:
+    """The units a finding's linked groups have in each catalog's latest score: {outcome: [golden, silver]} and the
+    rows by catalog. None when it links no group."""
+    if not links:
+        return None
+    st = studio(request)
+    rows = [row for link in links if (row := link_units(request, st, cls, column, link)) is not None]
+    totals = {o: [0, 0] for o in findings.COUNTED}
+    for r in rows:
+        if r["outcome"] in totals:
+            totals[r["outcome"]] = [totals[r["outcome"]][0] + r["golden"], totals[r["outcome"]][1] + r["silver"]]
+    return {"counts": {o: (v if v != [0, 0] or any(r["outcome"] == o for r in rows) else None)
+                       for o, v in totals.items()}, "rows": rows}
+
+
+def link_units(request: Request, st, cls: str, column: str, link: dict) -> dict | None:
+    """One linked group's units in its catalog's latest scores; None when the catalog can't be opened."""
+    try:
+        ctx = st.ctx(resolve(link["catalog"]), cls)
+    except (UserError, KeyError):
+        return None
+    golden, silver = (group_units(request, st, ctx, column, link, basis) for basis in ("human", "rule"))
+    return {"catalog": link["catalog"], "outcome": link.get("outcome"), "by": link.get("by"),
+            "key": link.get("key"), "golden": golden, "silver": silver}
+
+
+def group_units(request: Request, st, ctx, column: str, link: dict, basis: str) -> int:
+    sid = _newest(st, ctx, basis)
+    if not sid:
+        return 0
+    doc = scores.read(ctx, sid)
+    mine = [r for r in _rows(request, ctx, doc, sid) if r["basis"] == basis and r["column"] == column]
+    units = 0
+    for g in scores.wrong_groups(mine, link.get("group_by") or "auto"):
+        if findings.link_key({**g, "catalog": link["catalog"]}) == findings.link_key(link):
+            units = g["units"]
+    return units
+
+
+def _newest(st, ctx, basis: str) -> str | None:
+    """The score a finding's units are counted in: the latest extract output's against the latest golden dataset,
+    else the newest finished score on that basis (an output not scored yet doesn't zero every finding)."""
+    sc = scores.latest_score(ctx, basis, st.cache)
+    if sc:
+        return sc["id"]
+    for sid in reversed(scores.score_ids(ctx)):
+        doc = scores.read(ctx, sid)
+        if doc["status"] == "done" and (doc.get("results") or {}).get(basis):
+            return sid
+    return None
+
+
+# --- Request details --------------------------------------------------------------------------------------------
+
+
+def _cls(cls: str) -> str:
+    try:
+        return classes.get(cls).slug
+    except UserError as e:
+        raise HTTPException(422, str(e)) from None
+
+
+def _root(request: Request):
+    return studio(request).root
+
+
+def _role(request: Request, author: str) -> str | None:
+    return findings_role(_root(request), author)
+
+
+def findings_role(root, author: str) -> str | None:
+    try:
+        return roles(root).get(author)
+    except FileNotFoundError:
+        return None
