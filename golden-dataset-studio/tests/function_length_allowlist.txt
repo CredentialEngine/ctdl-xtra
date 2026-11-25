@@ -168,12 +168,6 @@ golden_datasets/strata.py::groups
 golden_datasets/suite.py::golden_values
 golden_datasets/suite.py::score
 golden_datasets/sync.py::sync_catalog
-golden_datasets/telemetry.py::WideSpanMiddleware.__call__
-golden_datasets/telemetry.py::_what
-golden_datasets/telemetry.py::init
-golden_datasets/telemetry.py::storage_op
-golden_datasets/telemetry.py::storage_op.wrap
-golden_datasets/telemetry.py::storage_op.wrap.inner
 golden_datasets/v2engine.py::_run_field_rule
 golden_datasets/v2engine.py::extract_from_text
 golden_datasets/v2engine.py::run_page
