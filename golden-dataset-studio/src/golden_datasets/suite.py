@@ -21,19 +21,19 @@ KIND_WORDS = {"correct": "marked correct, value changed", "expected": "expected 
               "inferred": "inferred value no longer produced"}
 
 
-def _index(snap: Snapshot | None, rid: str) -> tuple[dict, dict]:
-    if snap is None or rid not in snap.rules:
-        return {}, {}
-    rows = snap.rows(rid)
-    return {r["key"]: r for r in rows}, {(r.get("record_external_identifier"), r["page_stem"]): r for r in rows if r.get("record_external_identifier")}
+def score(base: Snapshot | None, draft: Snapshot, events: list[dict], inferred: list[dict] | None = None,
+          drafted: list[str] | None = None) -> dict:
+    """The whole suite: {rules, golden, now_right, inferred, got_worse, per_rule, regressions, changed}.
 
-
-def _find(index: tuple[dict, dict], target: dict) -> dict | None:
-    by_key, by_cp = index
-    row = by_key.get(target.get("occurrence_key") or "")
-    if row is None and target.get("record_external_identifier"):
-        row = by_cp.get((target["record_external_identifier"], target.get("page_stem")))
-    return row
+    `changed` = the rules whose definition changed (`drafted`) or whose values changed, each with its values_changed.
+    """
+    gold = golden_values(Review(draft, events), draft.rules, inferred)
+    per_rule = {rid: score_rule(base, draft, rid, values) for rid, values in gold.items()}
+    regressions = [x for rid, r in per_rule.items() for x in rule_regressions(rid, r)]
+    right = [x for r in per_rule.values() for x in r["now_right"]]
+    return {"rules": len(draft.rules), "golden": sum(len(v) for v in gold.values()), "now_right": len(right),
+            "inferred": sum(x["kind"] == "inferred" for x in right), "got_worse": len(regressions),
+            "per_rule": per_rule, "regressions": regressions, "changed": changed_values(base, draft, drafted)}
 
 
 def golden_values(rv: Review, rules: dict[str, dict], inferred: list[dict] | None = None) -> dict[str, list[dict]]:
@@ -44,23 +44,62 @@ def golden_values(rv: Review, rules: dict[str, dict], inferred: list[dict] | Non
     for rid, r in rules.items():
         if r["kind"] != "property":
             continue
-        got = []
-        for e in rv.verdicts_for(rid)["latest"].values():
-            t = e["target"]
-            if t.get("kind") != "match":
-                continue
-            base = {"course": t.get("record_external_identifier"), "page_stem": t.get("page_stem"),
-                    "occurrence_key": t.get("occurrence_key"), "annotation": e["annotation_id"]}
-            exp = (e.get("expected") or {}).get("text")
-            if e["verdict"] == "correct":
-                got.append(base | {"kind": "correct", "want": t.get("value_seen")})
-            elif e["verdict"] == "wrong" and exp is not None:
-                got.append(base | {"kind": "expected", "want": exp})
-            elif e["verdict"] == "wrong" and (rid, e["annotation_id"]) in extra:
-                got.append(base | {"kind": "inferred", "want": extra[(rid, e["annotation_id"])]["value"]})
+        latest = rv.verdicts_for(rid)["latest"].values()
+        got = [g for e in latest if (g := golden_value(rid, e, extra)) is not None]
         if got:
             out[rid] = got
     return out
+
+
+def golden_value(rid: str, e: dict, extra: dict[tuple, dict]) -> dict | None:
+    t = e["target"]
+    if t.get("kind") != "match":
+        return None
+    base = {"course": t.get("record_external_identifier"), "page_stem": t.get("page_stem"),
+            "occurrence_key": t.get("occurrence_key"), "annotation": e["annotation_id"]}
+    exp = (e.get("expected") or {}).get("text")
+    if e["verdict"] == "correct":
+        return base | {"kind": "correct", "want": t.get("value_seen")}
+    if e["verdict"] == "wrong" and exp is not None:
+        return base | {"kind": "expected", "want": exp}
+    if e["verdict"] == "wrong" and (rid, e["annotation_id"]) in extra:
+        return base | {"kind": "inferred", "want": extra[(rid, e["annotation_id"])]["value"]}
+    return None
+
+
+def score_rule(base: Snapshot | None, draft: Snapshot, rid: str, values: list[dict]) -> dict:
+    bi, di = _index(base, rid), _index(draft, rid)
+    checks = [matches_before_after(base, bi, di, g) for g in values]
+    right = [{"course": g["course"] or g["page_stem"], "kind": g["kind"]}
+             for g, (was, now) in zip(values, checks) if now and not was]
+    worse = [{"course": g["course"] or g["page_stem"], "kind": g["kind"], "annotation": g["annotation"]}
+             for g, (was, now) in zip(values, checks) if was and not now]
+    return {"golden": len(values), "before": sum(was for was, _ in checks), "after": sum(now for _, now in checks),
+            "now_right": right, "got_worse": worse}
+
+
+def matches_before_after(base: Snapshot | None, bi: tuple[dict, dict], di: tuple[dict, dict],
+                         g: dict) -> tuple[bool, bool]:
+    want = norm(g["want"])
+    was, now = _find(bi, g), _find(di, g)
+    ok_before = base is not None and norm(was["value"] if was else None) == want
+    ok_after = norm(now["value"] if now else None) == want
+    return ok_before, ok_after
+
+
+def rule_regressions(rid: str, r: dict) -> list[dict]:
+    out = [{"rule": rid, **w} for w in r["got_worse"]]
+    if r["after"] < r["before"] and not r["got_worse"]:  # can't happen without a lost value, but the rule is the spec's
+        out.append({"rule": rid, "course": None, "kind": "fewer", "annotation": None})
+    return out
+
+
+def changed_values(base: Snapshot | None, draft: Snapshot, drafted: list[str] | None) -> dict:
+    moved = set(drafted or [])
+    if base is not None:
+        moved |= set(changed_rules(base, draft))
+    return {rid: values_changed(base, draft, rid) for rid in sorted(moved) if rid in draft.rules or
+            (base is not None and rid in base.rules)}
 
 
 def values_changed(base: Snapshot | None, draft: Snapshot, rid: str, keep: int = 50) -> dict:
@@ -73,48 +112,30 @@ def values_changed(base: Snapshot | None, draft: Snapshot, rid: str, keep: int =
     return {"count": len(moved), "of": len(b), "courses": courses[:keep]}
 
 
-def score(base: Snapshot | None, draft: Snapshot, events: list[dict], inferred: list[dict] | None = None,
-          drafted: list[str] | None = None) -> dict:
-    """The whole suite: {rules, golden, now_right, inferred, got_worse, per_rule, regressions, changed}.
+# --- What try and publish print ------------------------------------------------------------------------------
 
-    `changed` = the rules whose definition changed (`drafted`) or whose values changed, each with its values_changed.
-    """
-    rv = Review(draft, events)
-    gold = golden_values(rv, draft.rules, inferred)
-    per_rule, regressions = {}, []
-    now_right = n_inferred = 0
-    for rid, values in gold.items():
-        bi, di = _index(base, rid), _index(draft, rid)
-        before = after = 0
-        right, worse = [], []
-        for g in values:
-            want = norm(g["want"])
-            was = _find(bi, g)
-            now = _find(di, g)
-            ok_before = base is not None and norm(was["value"] if was else None) == want
-            ok_after = norm(now["value"] if now else None) == want
-            before += ok_before
-            after += ok_after
-            who = g["course"] or g["page_stem"]
-            if ok_after and not ok_before:
-                right.append({"course": who, "kind": g["kind"]})
-                now_right += 1
-                n_inferred += g["kind"] == "inferred"
-            elif ok_before and not ok_after:
-                worse.append({"course": who, "kind": g["kind"], "annotation": g["annotation"]})
-        per_rule[rid] = {"golden": len(values), "before": before, "after": after, "now_right": right, "got_worse": worse}
-        for w in worse:
-            regressions.append({"rule": rid, **w})
-        if after < before and not worse:  # can't happen without a lost value, but the rule is the spec's
-            regressions.append({"rule": rid, "course": None, "kind": "fewer", "annotation": None})
-    moved = set(drafted or [])
-    if base is not None:
-        moved |= set(changed_rules(base, draft))
-    changed = {rid: values_changed(base, draft, rid) for rid in sorted(moved) if rid in draft.rules or
-               (base is not None and rid in base.rules)}
-    return {"rules": len(draft.rules), "golden": sum(len(v) for v in gold.values()), "now_right": now_right,
-            "inferred": n_inferred, "got_worse": len(regressions), "per_rule": per_rule,
-            "regressions": regressions, "changed": changed}
+
+def lines(s: dict, names: dict[str, str]) -> list[str]:
+    """The headline, then detail only where something moved."""
+    out = [headline(s)]
+    if s["changed"]:
+        out.append("Changed: " + ", ".join(
+            f"{names.get(rid, rid)} ({c['count']:,} value{'' if c['count'] == 1 else 's'})"
+            for rid, c in s["changed"].items()))
+    for rid, r in s["per_rule"].items():
+        if bits := rule_moves(r):
+            out.append(f"  {names.get(rid, rid)}: " + "; ".join(bits))
+    return out
+
+
+def rule_moves(r: dict) -> list[str]:
+    bits = []
+    if r["now_right"]:
+        bits.append("now right " + ", ".join(x["course"] + (" (inferred)" if x["kind"] == "inferred" else "")
+                                             for x in r["now_right"]))
+    if r["got_worse"]:
+        bits.append("got worse " + ", ".join(f"{x['course']} ({KIND_WORDS[x['kind']]})" for x in r["got_worse"]))
+    return bits
 
 
 def headline(s: dict) -> str:
@@ -131,20 +152,19 @@ def checked_fact(s: dict) -> str:
     return f"All {s['rules']} rules against {s['golden']:,} golden values. {worse}"
 
 
-def lines(s: dict, names: dict[str, str]) -> list[str]:
-    """The headline, then detail only where something moved."""
-    out = [headline(s)]
-    if s["changed"]:
-        out.append("Changed: " + ", ".join(
-            f"{names.get(rid, rid)} ({c['count']:,} value{'' if c['count'] == 1 else 's'})"
-            for rid, c in s["changed"].items()))
-    for rid, r in s["per_rule"].items():
-        bits = []
-        if r["now_right"]:
-            bits.append("now right " + ", ".join(x["course"] + (" (inferred)" if x["kind"] == "inferred" else "")
-                                                 for x in r["now_right"]))
-        if r["got_worse"]:
-            bits.append("got worse " + ", ".join(f"{x['course']} ({KIND_WORDS[x['kind']]})" for x in r["got_worse"]))
-        if bits:
-            out.append(f"  {names.get(rid, rid)}: " + "; ".join(bits))
-    return out
+# --- Finding a golden value's row ----------------------------------------------------------------------------
+
+
+def _index(snap: Snapshot | None, rid: str) -> tuple[dict, dict]:
+    if snap is None or rid not in snap.rules:
+        return {}, {}
+    rows = snap.rows(rid)
+    return {r["key"]: r for r in rows}, {(r.get("record_external_identifier"), r["page_stem"]): r for r in rows if r.get("record_external_identifier")}
+
+
+def _find(index: tuple[dict, dict], target: dict) -> dict | None:
+    by_key, by_cp = index
+    row = by_key.get(target.get("occurrence_key") or "")
+    if row is None and target.get("record_external_identifier"):
+        row = by_cp.get((target["record_external_identifier"], target.get("page_stem")))
+    return row
