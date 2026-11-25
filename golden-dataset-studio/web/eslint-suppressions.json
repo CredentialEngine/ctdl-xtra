@@ -49,11 +49,6 @@
       "count": 1
     }
   },
-  "src/catalogs/CatalogPicker.tsx": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
   "src/catalogs/GenerateRulesModal.tsx": {
     "max-lines-per-function": {
       "count": 3
