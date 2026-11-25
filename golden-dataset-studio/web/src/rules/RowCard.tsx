@@ -14,9 +14,21 @@ import { Controls, HistoryLine, Value } from "./parts";
 
 export type Pick3 = "correct" | "wrong" | "comment";
 
-export function RowCard({ row: r, kind, label, on, draft = null, perPage = false, items, links, index, onClick, onPick,
-  linked = null, stacked = false, lead, history, expansion, below, review = true, tour, confirm, marked, commentOnly,
-  okTitle, wrongTitle, talkTitle }: {
+export function RowCard(props: RowCardProps) {
+  const p = withDefaults(props);
+  const r = p.row;
+  const selectable = p.index !== undefined;
+  return (
+    <div className={rowClass(p)} data-row-index={selectable ? p.index : undefined} tabIndex={selectable ? -1 : undefined}
+      onClick={p.onClick} data-testid={selectable ? undefined : "row-card"} data-course={r.record_external_identifier ?? undefined}>
+      {p.kind !== "page" && <KeyCode id={r.record_external_identifier} occ={r.occurrence_key} generated={r.key_generated} />}
+      <CardBody p={p} />
+      <RowControls p={p} />
+    </div>
+  );
+}
+
+interface RowCardProps {
   row: RowX; kind: RuleKind;
   /** the value box's legend on an open card ("Description", "Found") */
   label: string | null;
@@ -41,38 +53,62 @@ export function RowCard({ row: r, kind, label, on, draft = null, perPage = false
   review?: boolean;
   tour?: boolean; confirm?: boolean; marked?: boolean; commentOnly?: boolean; okTitle?: string; wrongTitle?: string;
   talkTitle?: string;
-}) {
-  const val = statusWords(r.status, r.value);
+}
+
+type CardProps = ReturnType<typeof withDefaults>;
+
+function withDefaults({ draft = null, perPage = false, linked = null, stacked = false, review = true, ...rest }: RowCardProps) {
+  return { ...rest, draft, perPage, linked, stacked, review };
+}
+
+function rowClass({ row: r, on, draft, kind, perPage }: CardProps): string {
   const settled = isSettled(r.state);
-  const selectable = index !== undefined;
-  const cls = `row${on ? " on" : ""}${r.verdict && r.state !== "fixed" ? ` v-${r.verdict.verdict}` : ""}`
+  return `row${on ? " on" : ""}${r.verdict && r.state !== "fixed" ? ` v-${r.verdict.verdict}` : ""}`
     + `${settled && !(on && draft) ? " done" : ""}${kind === "page" ? " page-row" : ""}${perPage ? " in-page" : ""}`;
-  const linkRow = links ? <div className="row-links">{links}</div> : null;
+}
+
+function CardBody({ p }: { p: CardProps }) {
   return (
-    <div className={cls} data-row-index={selectable ? index : undefined} tabIndex={selectable ? -1 : undefined}
-      onClick={onClick} data-testid={selectable ? undefined : "row-card"} data-course={r.record_external_identifier ?? undefined}>
-      {kind !== "page" && <KeyCode id={r.record_external_identifier} occ={r.occurrence_key} generated={r.key_generated} />}
-      <div className="body">
-        {kind === "page"
-          ? <><div className="val">{r.page_title ?? r.page_stem}</div><div className="pg">{r.url.replace(/^https?:\/\//, "")}</div></>
-          : items ? <>{items}<div className="pg">{r.context}</div>{linkRow}</>
-          : <><div className={`valbox${on ? " on" : ""}${r.status === "found" ? "" : " empty"}${r.status === "absent" ? " claim" : ""}`}>
-              {on && <span className="valbox-k">{label}</span>}
-              {on
-                // an open row: the whole value, its paragraphs kept (as the Records tab shows a property)
-                ? <div className={`val full${r.status === "found" ? "" : " empty"}`} data-testid="row-full-value">{val}</div>
-                : <div className={`val${r.status === "found" ? "" : " empty"}`}><Value text={val} /></div>}
-              </div>
-              <div className="pg">{r.context}</div>
-              {linkRow}</>}
-        {below}
-        {review && <ReviewLine r={r} />}
-        <HistoryLine state={r.state} verdict={r.verdict} reattached={r.reattached} comments={r.comments} page_questions={r.page_questions}
-          linked={linked} stacked={stacked} lead={lead} items={history} />
-        {expansion}
-      </div>
-      <Controls state={r.state} verdict={r.verdict} comments={r.comments} draft={draft} onPick={onPick} tour={tour}
-        confirm={confirm} marked={marked} commentOnly={commentOnly} okTitle={okTitle} wrongTitle={wrongTitle} talkTitle={talkTitle} stacked={stacked} />
+    <div className="body">
+      <RowBody p={p} />
+      {p.below}
+      {p.review && <ReviewLine r={p.row} />}
+      <RowHistory p={p} />
+      {p.expansion}
     </div>
   );
+}
+
+/** A page row shows its title and address; a list its items; any other row its value box. */
+function RowBody({ p }: { p: CardProps }) {
+  const r = p.row;
+  const linkRow = p.links ? <div className="row-links">{p.links}</div> : null;
+  if (p.kind === "page") return <><div className="val">{r.page_title ?? r.page_stem}</div><div className="pg">{r.url.replace(/^https?:\/\//, "")}</div></>;
+  if (p.items) return <>{p.items}<div className="pg">{r.context}</div>{linkRow}</>;
+  return <><ValueBox row={r} on={p.on} label={p.label} /><div className="pg">{r.context}</div>{linkRow}</>;
+}
+
+function ValueBox({ row: r, on, label }: { row: RowX; on: boolean; label: string | null }) {
+  const val = statusWords(r.status, r.value);
+  return (
+    <div className={`valbox${on ? " on" : ""}${r.status === "found" ? "" : " empty"}${r.status === "absent" ? " claim" : ""}`}>
+      {on && <span className="valbox-k">{label}</span>}
+      {on
+        // an open row: the whole value, its paragraphs kept (as the Records tab shows a property)
+        ? <div className={`val full${r.status === "found" ? "" : " empty"}`} data-testid="row-full-value">{val}</div>
+        : <div className={`val${r.status === "found" ? "" : " empty"}`}><Value text={val} /></div>}
+    </div>
+  );
+}
+
+function RowHistory({ p }: { p: CardProps }) {
+  const r = p.row;
+  return <HistoryLine state={r.state} verdict={r.verdict} reattached={r.reattached} comments={r.comments} page_questions={r.page_questions}
+    linked={p.linked} stacked={p.stacked} lead={p.lead} items={p.history} />;
+}
+
+function RowControls({ p }: { p: CardProps }) {
+  const r = p.row;
+  return <Controls state={r.state} verdict={r.verdict} comments={r.comments} draft={p.draft} onPick={p.onPick} tour={p.tour}
+    confirm={p.confirm} marked={p.marked} commentOnly={p.commentOnly} okTitle={p.okTitle} wrongTitle={p.wrongTitle} talkTitle={p.talkTitle} stacked={p.stacked} />;
 }

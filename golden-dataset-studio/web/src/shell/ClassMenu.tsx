@@ -20,6 +20,36 @@ export function classLine(c: ClassSummary): string {
 
 export function ClassMenu({ catalog, cls, tab }: { catalog: CatalogDetail; cls: ClassSel; tab: Tab }) {
   const [open, setOpen] = useState(false);
+  const ref = useCloseOnOutside(open, setOpen);
+  const pick = (c: ClassSel) => { setOpen(false); if (c !== cls) go(href(catalog.short, tab, null, {}, c)); };
+  return (
+    <div className="class-menu" ref={ref}>
+      <button type="button" className="chip crumb-cat crumb-class" aria-haspopup="menu" aria-expanded={open}
+        data-testid="class-chip" onClick={() => setOpen((o) => !o)}
+        title="The class whose rules, records, datasets and scores the tabs show">
+        {CLASS_NAME[cls]}{caret}</button>
+      {open && <ClassItems classes={catalog.classes ?? []} cls={cls} onPick={pick} />}
+    </div>
+  );
+}
+
+function ClassItems({ classes, cls, onPick }: { classes: ClassSummary[]; cls: ClassSel; onPick: (c: ClassSel) => void }) {
+  return (
+    <div className="menu" role="menu">
+      {classes.map((c) => (
+        <button key={c.slug} role="menuitem" className={c.slug === cls ? "on" : ""} onClick={() => onPick(c.slug)}>
+          {c.slug === cls ? tick : <i />}{c.name}<span>{classLine(c)}</span></button>
+      ))}
+      <div className="menu-sep" />
+      <button role="menuitem" className={cls === "all" ? "on" : ""} onClick={() => onPick("all")}>
+        {cls === "all" ? tick : <i />}All classes
+        <span>{classes.length === 2 ? "Both classes'" : "Every class's"} rules in one list</span></button>
+    </div>
+  );
+}
+
+// while the menu is open, a click outside it or Escape closes it
+function useCloseOnOutside(open: boolean, setOpen: (open: boolean) => void) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -28,28 +58,6 @@ export function ClassMenu({ catalog, cls, tab }: { catalog: CatalogDetail; cls: 
     window.addEventListener("mousedown", away);
     window.addEventListener("keydown", esc);
     return () => { window.removeEventListener("mousedown", away); window.removeEventListener("keydown", esc); };
-  }, [open]);
-  const classes = catalog.classes ?? [];
-  const pick = (c: ClassSel) => { setOpen(false); if (c !== cls) go(href(catalog.short, tab, null, {}, c)); };
-  const names = classes.map((c) => c.name);
-  return (
-    <div className="class-menu" ref={ref}>
-      <button type="button" className="chip crumb-cat crumb-class" aria-haspopup="menu" aria-expanded={open}
-        data-testid="class-chip" onClick={() => setOpen((o) => !o)}
-        title="The class whose rules, records, datasets and scores the tabs show">
-        {CLASS_NAME[cls]}{caret}</button>
-      {open && (
-        <div className="menu" role="menu">
-          {classes.map((c) => (
-            <button key={c.slug} role="menuitem" className={c.slug === cls ? "on" : ""} onClick={() => pick(c.slug)}>
-              {c.slug === cls ? tick : <i />}{c.name}<span>{classLine(c)}</span></button>
-          ))}
-          <div className="menu-sep" />
-          <button role="menuitem" className={cls === "all" ? "on" : ""} onClick={() => pick("all")}>
-            {cls === "all" ? tick : <i />}All classes
-            <span>{names.length === 2 ? "Both classes'" : "Every class's"} rules in one list</span></button>
-        </div>
-      )}
-    </div>
-  );
+  }, [open, setOpen]);
+  return ref;
 }

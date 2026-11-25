@@ -3,300 +3,219 @@
 // page pane with numbered highlights for each property. "Annotated by" (?by=…, Evals spec §6.8) lists only the courses a
 // person annotated; on a course, their properties come first and the rest fold into one line.
 import { Skel, SkelCards, SkelList } from "../shell/Skeleton";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "../api/client";
-import type { CourseDetail, EventBrief, NewEvent } from "../api/types";
-import { PagePane, type Highlight } from "../pagepane";
+import type { ReactNode } from "react";
+import type { CourseDetail } from "../api/types";
+import { PagePane } from "../pagepane";
 import { AnnotatedBy, PersonLine, ReviewLine } from "../rules/AnnotatedBy";
-import { apiX, type Annotators, type CourseHitX } from "../rules/api";
-import {
-  addCapture, applyEvent, applyReview, briefOf, canConfirm, isField, isSettled, keyAction, newDraft, scrollWithin, shortTitle, verdictEvent, type Draft,
-} from "../rules/logic";
+import type { CourseHitX } from "../rules/api";
+import { addCapture, canConfirm, isSettled, shortTitle } from "../rules/logic";
 import { Controls, Expansion, HistoryLine } from "../rules/parts";
 import { statusWords } from "../rules/claims";
 import "../rules/rules.css";
 import { Ico } from "../shell/icons";
-import { useReviewer, useRole } from "../shell/reviewer";
-import { go, href } from "../shell/router";
+import { go, href, type ClassSlug } from "../shell/router";
 import type { TabProps } from "../shell/tabProps";
-import { fmt, termUrl, toast, useKeyHints } from "../shell/ui";
-import { foldLine, groupCards, recordHeading, splitCards, valueKey, type CardValue } from "./logic";
-import { apiClass, inClass, NOUN, recordNoun } from "../shell/klass";
-import type { ClassSlug } from "../shell/router";
+import { fmt, termUrl } from "../shell/ui";
+import { foldLine, recordHeading, valueKey, type Card, type CardValue } from "./logic";
+import { apiClass, NOUN } from "../shell/klass";
+import { useRecordsPage, type RecordsPage } from "./useRecordsPage";
 import "./records.css";
 
-const HINTS = (
-  <span className="key-hints"><kbd>1</kbd>correct <kbd>2</kbd>wrong <kbd>3</kbd>comment <kbd>Enter</kbd>save{" "}
-    <kbd>Esc</kbd>cancel · same verdicts as the Rules tab</span>
-);
+type PageProps = { page: RecordsPage };
 
 export default function RecordsTab({ catalog, route }: TabProps) {
-  const cat = catalog.short;
-  const me = useReviewer();
-  const role = useRole();
-  const [q, setQ] = useState("");
-  const [hits, setHits] = useState<CourseHitX[] | null>(null);
-  const [course, setCourse] = useState<CourseDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [sel, setSel] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [activeStem, setActiveStem] = useState<string | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  useKeyHints(HINTS, []);
-
-  const recordKey = route.id;
-  const by = route.params.get("by");
-  const wantProp = route.params.get("prop") ?? (by ? null : "Description");
-  const wantOcc = route.params.get("occ");
-  const [people, setPeople] = useState<Annotators | null>(null);
-  const [showAll, setShowAll] = useState(false);
-  useEffect(() => { apiX.annotators(cat).then(setPeople, () => setPeople(null)); }, [cat]);
-
-  // with All classes, every class's records, a folding heading per class (approved item 16)
-  const allCls = route.cls === "all";
-  const ruled = useMemo(() => (catalog.classes ?? []).filter((c) => c.ruleset_version), [catalog.classes]);
-  const ruledKey = ruled.map((c) => c.slug).join(",");
-  const openCls = (route.params.get("in") as ClassSlug | null) ?? (allCls ? null : (route.cls as ClassSlug));
-  const [shut, setShut] = useState<Record<string, boolean>>({});
-  // the list belongs to one catalog and class: after a switch, a loading preview shows until that list arrives
-  // (typing a search keeps the current list; only a switch clears it)
-  const listKey = `${cat}|${route.cls}`;
-  const [hitsFor, setHitsFor] = useState<string | null>(null);
-  useEffect(() => {
-    let live = true;
-    const key = listKey;
-    const ask = () => (allCls
-      ? Promise.all(ruled.map((c) => inClass(c.slug, () => apiX.courses(cat, q || undefined, by))
-          .then((hs) => hs.map((h) => ({ ...h, cls: c.slug }))))).then((xs) => xs.flat())
-      : apiX.courses(cat, q || undefined, by));
-    const t = window.setTimeout(() => ask().then((h) => { if (live) { setHits(h); setHitsFor(key); } }, (e) => setError(String(e))), q ? 120 : 0);
-    return () => { live = false; window.clearTimeout(t); };
-  }, [cat, q, by, allCls, ruledKey, listKey]);
-  const listLoading = hitsFor !== listKey && !error;
-
-  // no record in the address yet: open the first one in the list
-  useEffect(() => {
-    if (!recordKey && hits && hits.length && !q) {
-      const h = hits.find((x) => !allCls || x.cls === (openCls ?? ruled[ruled.length - 1]?.slug)) ?? hits[0];
-      go(href(cat, "records", h.record_external_identifier, { by, in: allCls ? h.cls : null }), true);
-    }
-  }, [recordKey, hits, q, cat, by]);
-
-  useEffect(() => {
-    if (!recordKey) return;
-    let live = true;
-    setDraft(null); setActiveStem(null); setShowAll(false);
-    api.course(cat, recordKey).then((d) => { if (live) { setCourse(d); setError(null); } }, (e) => { if (live) { setCourse(null); setError(String(e)); } });
-    return () => { live = false; };
-  }, [cat, recordKey, openCls]);
-
-  const all = useMemo(() => (course ? groupCards(course) : []), [course]);
-  // the record in the address hasn't arrived yet (another record, or a class switch): placeholders, not the last one
-  const recordLoading = !!recordKey && !error && course?.record_external_identifier !== recordKey;
-  // the pages the record's values come from: only when there are several does each card say which (approved item 16)
-  const pages = useMemo(() => new Set(course?.occurrences.map((o) => o.page_stem) ?? []).size, [course]);
-  const noun = recordNoun(allCls ? (openCls ?? "course") : (route.cls as ClassSlug));
-  const { mine, folded } = useMemo(() => splitCards(all, by), [all, by]);
-  const cards = useMemo(() => (showAll ? [...mine, ...folded] : mine), [mine, folded, showAll]);
-  useEffect(() => {
-    if (!cards.length) return;
-    const card = cards.find((c) => c.property === wantProp) ?? cards[0];
-    // the entry the Rules tab came from (a course can be on several pages), else the first
-    setSel(valueKey(card.values.find((v) => v.occurrence_key === wantOcc) ?? card.values[0]));
-  }, [cards, wantProp, wantOcc]);
-
-  useEffect(() => {
-    const box = listRef.current;
-    const el = box?.querySelector<HTMLElement>(".course-item.on");
-    if (box && el) scrollWithin(box, el, false);
-  }, [hits, recordKey]);
-
-  const cardsRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const box = cardsRef.current;
-    const el = box?.querySelector<HTMLElement>(".v.on")?.closest<HTMLElement>(".card");
-    if (box && el) box.scrollTop = el.offsetTop - box.offsetTop - 8;
-  }, [sel, course]);
-
-  const flat = useMemo(() => cards.flatMap((c) => c.values.map((v) => ({ card: c, v }))), [cards]);
-  const cur = flat.find((x) => valueKey(x.v) === sel) ?? flat[0] ?? null;
-
-  // --- page pane ------------------------------------------------------------------------------------------
-  const tabs = useMemo(() => {
-    const seen = new Map<string, { stem: string; url: string; title: string; course: boolean }>();
-    for (const o of course?.occurrences ?? []) {
-      if (!seen.has(o.page_stem)) seen.set(o.page_stem, { stem: o.page_stem, url: o.url, title: shortTitle(o.page_title ?? o.page_stem), course: false });
-      if (o.locator_rule_id === "locator-course-page") seen.get(o.page_stem)!.course = true;
-    }
-    return [...seen.values()].sort((a, b) => Number(b.course) - Number(a.course)).map((t, i) => ({ stem: t.stem, url: t.url, title: t.title, badge: i + 1 }));
-  }, [course]);
-  const active = activeStem ?? cur?.v.page_stem ?? tabs[0]?.stem ?? null;
-  const highlights = useMemo(() => {
-    const hs: Highlight[] = [];
-    for (const { card, v } of flat) {
-      if (v.page_stem !== active || !v.css_path) continue;
-      hs.push({ id: valueKey(v), kind: "value", cssPath: v.css_path, charStart: v.char_start, charEnd: v.char_end, text: v.value, badge: card.n });
-    }
-    draft?.captures.forEach((c, i) => hs.push({ id: `capture-${i}`, kind: "expected", cssPath: c.css_path, charStart: c.char_start,
-      charEnd: c.char_end, text: c.text, removable: true }));
-    return hs;
-  }, [flat, active, draft]);
-  const focusId = draft?.captures.length ? "capture-0" : cur && cur.v.page_stem === active ? valueKey(cur.v) : null;
-
-  // --- saving ---------------------------------------------------------------------------------------------
-  const patch = useCallback((v: CardValue, ev: EventBrief) => {
-    setCourse((d) => d && { ...d, occurrences: d.occurrences.map((o) => o.occurrence_key !== v.occurrence_key ? o
-      : { ...o, properties: o.properties.map((f) => (f.rule_id === v.rule_id ? applyReview(applyEvent(f, ev), ev, role) : f)) }) });
-  }, [role]);
-
-  const save = useCallback(async (v: CardValue, what: { verdict: "correct" } | { draft: Draft }) => {
-    const confirming = "verdict" in what && canConfirm(v, role);
-    if ("verdict" in what && v.state === "correct" && !confirming) { toast("Already correct"); return; }
-    const target: NewEvent["target"] = { kind: "match", rule_id: v.rule_id, occurrence_key: v.occurrence_key, page_stem: v.page_stem };
-    const ev = verdictEvent(me, target, v.verdict, what);
-    try {
-      const r = await api.annotate(cat, ev);
-      patch(v, briefOf(r.event as Parameters<typeof briefOf>[0]));
-      setDraft(null);
-      toast(ev.type === "comment" ? "Comment saved" : ev.verdict === "question" ? "Question for the institution saved"
-        : `${confirming ? "Confirmed: human-reviewed" : ev.verdict === "correct" ? "Correct saved" : "Wrong saved"} · ${v.property_label ?? v.rule_id}`);
-    } catch (e) {
-      toast(`Not saved: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }, [cat, me, role, patch]);
-
-  const pick = useCallback((v: CardValue, k: "correct" | "wrong" | "comment") => {
-    if (valueKey(v) !== sel) { setSel(valueKey(v)); setActiveStem(null); }
-    if (k === "correct") { void save(v, { verdict: "correct" }); return; }
-    setDraft(newDraft(k, v.verdict, v.state));
-  }, [sel, save]);
-
-  const keys = useRef<(e: KeyboardEvent) => void>(() => {});
-  keys.current = (e) => {
-    const a = keyAction(e, isField(e.target));
-    if (!a || !cur) return;
-    if (a === "save") { if (draft) { e.preventDefault(); void save(cur.v, { draft }); } return; }
-    if (a === "cancel") { setDraft(null); return; }
-    const i = flat.indexOf(cur);
-    if (a === "next" || a === "prev") {
-      e.preventDefault();
-      const n = flat[Math.max(0, Math.min(flat.length - 1, i + (a === "next" ? 1 : -1)))];
-      setSel(valueKey(n.v)); setDraft(null); setActiveStem(null);
-      return;
-    }
-    e.preventDefault();
-    pick(cur.v, a === "correct" ? "correct" : a === "comment" ? "comment" : "wrong");
-  };
-  useEffect(() => {
-    const on = (e: KeyboardEvent) => keys.current(e);
-    window.addEventListener("keydown", on);
-    return () => window.removeEventListener("keydown", on);
-  }, []);
-
-  const curCard = cur?.card;
-  const banner = draft?.mode === "wrong"
-    ? null
-    : curCard ? <><span className="gds-num">{curCard.n}</span><span className="grow"><b>{curCard.property}</b> on {shortTitle(tabs.find((t) => t.stem === active)?.title, 50)} — numbers match the cards on the left.</span></> : null;
-  const legend = draft?.mode === "wrong" && curCard
-    ? <><Ico name="highlight" /><span><b>Select the right text</b> on the page for {curCard.property}: drag across it.</span></> : null;
-
+  const page = useRecordsPage(catalog, route);
   return (
     <div className="rec-layout w4-records">
-      <aside className="col">
-        <input className="search" placeholder={allCls ? "Find a course or a program" : `Find a ${noun[0]} by name or identifier`}
-          value={q} onChange={(e) => setQ(e.target.value)} aria-label={`Find a ${noun[0]}`} />
-        <div className="records-filter">
-          <AnnotatedBy people={people} by={by} me={me} onPick={(x) => go(href(cat, "records", null, { by: x }))} />
-        </div>
-        <div className="course-list" ref={listRef}>
-          {listLoading && <SkelList label={`Loading ${noun[1]}`} heads={false} />}
-          {!listLoading && (allCls ? ruled.map((c) => c.slug) : [null]).map((cls) => {
-            const mine = (hits ?? []).filter((h) => !cls || h.cls === cls);
-            const sum = cls ? ruled.find((c) => c.slug === cls) : null;
-            const isShut = cls ? (shut[cls] ?? (cls !== (openCls ?? ruled[ruled.length - 1]?.slug) && !q)) : false;
-            return (
-              <div key={cls ?? "one"} className="cls-list">
-                {cls && sum && (
-                  <button type="button" className={`cls-h${isShut ? " shut" : ""}`} aria-expanded={!isShut}
-                    onClick={() => setShut((s) => ({ ...s, [cls]: !isShut }))}>
-                    <Ico name="chevron" />{sum.name}<span>{sum.records === null ? "" : `${fmt(sum.records)} ${NOUN[cls][1]}`}</span>
-                  </button>)}
-                {!isShut && mine.map((h) => (
-                  <a key={`${h.cls ?? ""}:${h.record_external_identifier}`} title={h.line ?? undefined}
-                    className={`course-item named${h.record_external_identifier === recordKey && (!cls || cls === openCls) ? " on" : ""}`}
-                    href={href(cat, "records", h.record_external_identifier, { by, in: cls })}>
-                    <span className="t">{h.name ?? (h.line ?? "").replace(/^[^-]*-\s*/, "")}{h.annotated && <span className="dot" title="has verdicts" />}</span>
-                    <span className={`c${h.record_external_identifier.startsWith(`${NOUN[(h.cls ?? openCls ?? "course") as ClassSlug][0]}-`) ? " gen" : ""}`}>
-                      {h.record_external_identifier}</span>
-                  </a>
-                ))}
-              </div>
-            );
-          })}
-          {!listLoading && hits && hits.length === 0 && <div className="faint" style={{ padding: 10 }}>{q ? <>No {noun[0]} matches “{q}”.</> : `No ${noun[0]} passes the Annotated by filter.`}</div>}
-        </div>
-      </aside>
-      <section className="col mid">
-        {error && <div className="placeholder muted" style={{ padding: 18 }}>{error}</div>}
-        {recordLoading && <><div className="rec-head"><Skel w="34%" h={22} /></div><SkelCards label={`Loading this ${noun[0]}`} /></>}
-        {course && !recordLoading && <>
-          <div className="rec-head"><h1>{recordHeading(all, course.record_external_identifier, apiClass())}</h1>
-            {pages > 1 && <div className="sub">Values from {pages} pages</div>}</div>
-          <div className="cards" ref={cardsRef}>
-            {cards.map((c) => {
-              const url = termUrl(c.ctdl_property);
-              return (
-                <div key={c.property} className="card" data-card={c.n}>
-                  <div className="card-h"><span className="bn">{c.n}</span>
-                    {url ? <a className="term sm" href={url} target="_blank" rel="noopener noreferrer">{c.ctdl_property?.replace(/>/g, " → ")}<Ico name="ext" /></a>
-                         : <span className="term sm plain">no CTDL term</span>}
-                    <span className="lbl">{c.property}</span></div>
-                  <div className="vals">{c.values.map((v) => {
-                    const on = cur?.v === v;
-                    const settled = isSettled(v.state);
-                    return (
-                      <div key={valueKey(v)} className={`v${on ? " on" : ""}${v.verdict ? ` v-${v.verdict.verdict}` : ""}${settled && !(on && draft) ? " done" : ""}`}
-                        onClick={() => { if (!on) { setSel(valueKey(v)); setDraft(null); setActiveStem(null); } }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div className={`valbox${on ? " on" : ""}${v.status === "found" ? "" : " empty"}`}>
-                            {on && <span className="valbox-k">Value</span>}
-                            {v.items
-                              ? v.items.map((it) => <div key={it.value_index} className="item-line">{it.value}</div>)  // a list: one line per item
-                              : <div className="tx">{statusWords(v.status, v.value)}</div>}
-                          </div>
-                          {pages > 1 && <div className="src"><span className="tag">{v.on_course_page ? `${noun[0]} page` : "other page"}</span><span>{shortTitle(v.page_title, 70)}</span></div>}
-                          {on && (
-                            <div className="row-links">
-                              <a className="xbtn" title="Open this property's rule in the Rules tab, with this course selected"
-                                href={href(cat, "rules", v.rule_id, { row: v.occurrence_key })}
-                                onClick={(e) => e.stopPropagation()}>Open in Rules →</a>
-                            </div>)}
-                          {v.human_reviewed || v.engineer_checked ? <ReviewLine r={v} />
-                            : by && v.annotators?.[by] ? <PersonLine name={by} a={v.annotators[by]} /> : null}
-                          <HistoryLine state={v.state} verdict={v.verdict} comments={v.comments} />
-                          {on && draft && <Expansion draft={draft} propertyRule emptyValue={v.status !== "found"} onChange={setDraft}
-                            onSave={() => void save(v, { draft })} onCancel={() => setDraft(null)} />}
-                        </div>
-                        <Controls state={v.state} verdict={v.verdict} comments={v.comments} draft={on ? draft : null} onPick={(k) => pick(v, k)}
-                          confirm={canConfirm(v, role)} marked={v.human_reviewed || v.engineer_checked} />
-                      </div>
-                    );
-                  })}</div>
-                </div>
-              );
-            })}
-            {by && folded.length > 0 && !showAll && (
-              <div className="rec-fold" data-testid="fold">{foldLine(folded.length, by)} · <button className="linkish" onClick={() => setShowAll(true)}>show</button></div>)}
-          </div>
-        </>}
-      </section>
-      <section className="col pane">
-        <PagePane catalog={cat} tabs={tabs} activeStem={active} onActivate={setActiveStem} highlights={highlights} focusId={focusId}
-          banner={banner} legend={legend} ruleset={catalog.ruleset_version}
-          captureSelection={draft?.mode === "wrong"}
-          onSelection={(c) => setDraft((d) => (d && d.mode === "wrong" ? { ...d, captures: addCapture(d.captures, c) } : d))}
-          onRemove={(id) => setDraft((d) => (d ? { ...d, captures: d.captures.filter((_, j) => `capture-${j}` !== id) } : d))} />
-      </section>
+      <RecordFinder page={page} />
+      <RecordCards page={page} />
+      <section className="col pane"><RecordPane page={page} /></section>
     </div>
   );
+}
+
+function RecordFinder({ page }: PageProps) {
+  const { address, list, me } = page;
+  return (
+    <aside className="col">
+      <input className="search" placeholder={address.allCls ? "Find a course or a program" : `Find a ${address.noun[0]} by name or identifier`}
+        value={list.q} onChange={(e) => list.setQ(e.target.value)} aria-label={`Find a ${address.noun[0]}`} />
+      <div className="records-filter">
+        <AnnotatedBy people={list.people} by={address.by} me={me} onPick={(x) => go(href(address.cat, "records", null, { by: x }))} />
+      </div>
+      <RecordList page={page} />
+    </aside>
+  );
+}
+
+function RecordList({ page }: PageProps) {
+  const { address, list } = page;
+  const classes = address.allCls ? list.ruled.map((c) => c.slug) : [null];
+  return (
+    <div className="course-list" ref={list.listRef}>
+      {list.listLoading && <SkelList label={`Loading ${address.noun[1]}`} heads={false} />}
+      {!list.listLoading && classes.map((cls) => <ClassRecords key={cls ?? "one"} page={page} cls={cls} />)}
+      {!list.listLoading && list.hits && list.hits.length === 0 && <div className="faint" style={{ padding: 10 }}>{list.q
+        ? <>No {address.noun[0]} matches “{list.q}”.</> : `No ${address.noun[0]} passes the Annotated by filter.`}</div>}
+    </div>
+  );
+}
+
+function ClassRecords({ page, cls }: PageProps & { cls: ClassSlug | null }) {
+  const hits = (page.list.hits ?? []).filter((h) => !cls || h.cls === cls);
+  const isShut = isClassShut(page, cls);
+  return (
+    <div className="cls-list">
+      {cls && <ClassHeading page={page} cls={cls} isShut={isShut} />}
+      {!isShut && hits.map((h) => <RecordLink key={`${h.cls ?? ""}:${h.record_external_identifier}`} page={page} hit={h} cls={cls} />)}
+    </div>
+  );
+}
+
+function ClassHeading({ page, cls, isShut }: PageProps & { cls: ClassSlug; isShut: boolean }) {
+  const summary = page.list.ruled.find((c) => c.slug === cls);
+  if (!summary) return null;
+  return (
+    <button type="button" className={`cls-h${isShut ? " shut" : ""}`} aria-expanded={!isShut}
+      onClick={() => page.list.setShut((s) => ({ ...s, [cls]: !isShut }))}>
+      <Ico name="chevron" />{summary.name}<span>{summary.records === null ? "" : `${fmt(summary.records)} ${NOUN[cls][1]}`}</span>
+    </button>
+  );
+}
+
+function RecordLink({ page, hit: h, cls }: PageProps & { hit: CourseHitX; cls: ClassSlug | null }) {
+  const { cat, by, recordKey, openCls } = page.address;
+  const isOpen = h.record_external_identifier === recordKey && (!cls || cls === openCls);
+  return (
+    <a title={h.line ?? undefined} className={`course-item named${isOpen ? " on" : ""}`}
+      href={href(cat, "records", h.record_external_identifier, { by, in: cls })}>
+      <span className="t">{h.name ?? (h.line ?? "").replace(/^[^-]*-\s*/, "")}{h.annotated && <span className="dot" title="has verdicts" />}</span>
+      <span className={`c${isGeneratedKey(h, openCls) ? " gen" : ""}`}>
+        {h.record_external_identifier}</span>
+    </a>
+  );
+}
+
+function RecordCards({ page }: PageProps) {
+  const { list, cards, record, address } = page;
+  return (
+    <section className="col mid">
+      {list.error && <div className="placeholder muted" style={{ padding: 18 }}>{list.error}</div>}
+      {cards.recordLoading && <><div className="rec-head"><Skel w="34%" h={22} /></div><SkelCards label={`Loading this ${address.noun[0]}`} /></>}
+      {record.course && !cards.recordLoading && <RecordBody page={page} course={record.course} />}
+    </section>
+  );
+}
+
+function RecordBody({ page, course }: PageProps & { course: CourseDetail }) {
+  const { cards, address: { by }, selection } = page;
+  return (<>
+    <div className="rec-head"><h1>{recordHeading(cards.all, course.record_external_identifier, apiClass())}</h1>
+      {cards.pages > 1 && <div className="sub">Values from {cards.pages} pages</div>}</div>
+    <div className="cards" ref={page.cardsRef}>
+      {cards.cards.map((c) => <PropertyCard key={c.property} page={page} card={c} />)}
+      {by && cards.folded.length > 0 && !selection.showAll && (
+        <div className="rec-fold" data-testid="fold">{foldLine(cards.folded.length, by)} · <button className="linkish" onClick={() => selection.setShowAll(true)}>show</button></div>)}
+    </div>
+  </>);
+}
+
+function PropertyCard({ page, card: c }: PageProps & { card: Card }) {
+  const url = termUrl(c.ctdl_property);
+  return (
+    <div className="card" data-card={c.n}>
+      <div className="card-h"><span className="bn">{c.n}</span>
+        {url ? <a className="term sm" href={url} target="_blank" rel="noopener noreferrer">{c.ctdl_property?.replace(/>/g, " → ")}<Ico name="ext" /></a>
+             : <span className="term sm plain">no CTDL term</span>}
+        <span className="lbl">{c.property}</span></div>
+      <div className="vals">{c.values.map((v) => <ValueRow key={valueKey(v)} page={page} v={v} />)}</div>
+    </div>
+  );
+}
+
+function ValueRow({ page, v }: PageProps & { v: CardValue }) {
+  const { cards, selection: { draft, select }, actions, role } = page;
+  const on = cards.cur?.v === v;
+  const settled = isSettled(v.state);
+  return (
+    <div className={`v${on ? " on" : ""}${v.verdict ? ` v-${v.verdict.verdict}` : ""}${settled && !(on && draft) ? " done" : ""}`}
+      onClick={() => { if (!on) select(valueKey(v)); }}>
+      <ValueDetails page={page} v={v} on={on} />
+      <Controls state={v.state} verdict={v.verdict} comments={v.comments} draft={on ? draft : null} onPick={(k) => actions.pick(v, k)}
+        confirm={canConfirm(v, role)} marked={v.human_reviewed || v.engineer_checked} />
+    </div>
+  );
+}
+
+function ValueDetails({ page, v, on }: PageProps & { v: CardValue; on: boolean }) {
+  const { address, cards, selection: { draft, setDraft }, actions } = page;
+  return (
+    <div style={{ minWidth: 0 }}>
+      <ValueBox v={v} on={on} />
+      {cards.pages > 1 && <div className="src"><span className="tag">{v.on_course_page ? `${address.noun[0]} page` : "other page"}</span><span>{shortTitle(v.page_title, 70)}</span></div>}
+      {on && <OpenInRules cat={address.cat} v={v} />}
+      <WhoReviewed v={v} by={address.by} />
+      <HistoryLine state={v.state} verdict={v.verdict} comments={v.comments} />
+      {on && draft && <Expansion draft={draft} propertyRule emptyValue={v.status !== "found"} onChange={setDraft}
+        onSave={() => void actions.save(v, { draft })} onCancel={() => setDraft(null)} />}
+    </div>
+  );
+}
+
+function ValueBox({ v, on }: { v: CardValue; on: boolean }) {
+  return (
+    <div className={`valbox${on ? " on" : ""}${v.status === "found" ? "" : " empty"}`}>
+      {on && <span className="valbox-k">Value</span>}
+      {v.items
+        ? v.items.map((it) => <div key={it.value_index} className="item-line">{it.value}</div>)  // a list: one line per item
+        : <div className="tx">{statusWords(v.status, v.value)}</div>}
+    </div>
+  );
+}
+
+function OpenInRules({ cat, v }: { cat: string; v: CardValue }) {
+  return (
+    <div className="row-links">
+      <a className="xbtn" title="Open this property's rule in the Rules tab, with this course selected"
+        href={href(cat, "rules", v.rule_id, { row: v.occurrence_key })}
+        onClick={(e) => e.stopPropagation()}>Open in Rules →</a>
+    </div>
+  );
+}
+
+function WhoReviewed({ v, by }: { v: CardValue; by: string | null }) {
+  if (v.human_reviewed || v.engineer_checked) return <ReviewLine r={v} />;
+  return by && v.annotators?.[by] ? <PersonLine name={by} a={v.annotators[by]} /> : null;
+}
+
+function RecordPane({ page }: PageProps) {
+  const { address, pane, selection: { draft, setDraft, setActiveStem }, catalog } = page;
+  return (
+    <PagePane catalog={address.cat} tabs={pane.tabs} activeStem={pane.active} onActivate={setActiveStem} highlights={pane.highlights} focusId={pane.focusId}
+      banner={bannerOf(page)} legend={legendOf(page)} ruleset={catalog.ruleset_version}
+      captureSelection={draft?.mode === "wrong"}
+      onSelection={(c) => setDraft((d) => (d && d.mode === "wrong" ? { ...d, captures: addCapture(d.captures, c) } : d))}
+      onRemove={(id) => setDraft((d) => (d ? { ...d, captures: d.captures.filter((_, j) => `capture-${j}` !== id) } : d))} />
+  );
+}
+
+function bannerOf({ cards, pane, selection }: RecordsPage): ReactNode {
+  const card = cards.cur?.card;
+  if (selection.draft?.mode === "wrong" || !card) return null;
+  return <><span className="gds-num">{card.n}</span><span className="grow"><b>{card.property}</b> on {shortTitle(pane.tabs.find((t) => t.stem === pane.active)?.title, 50)} — numbers match the cards on the left.</span></>;
+}
+
+function legendOf({ cards, selection }: RecordsPage): ReactNode {
+  const card = cards.cur?.card;
+  if (selection.draft?.mode !== "wrong" || !card) return null;
+  return <><Ico name="highlight" /><span><b>Select the right text</b> on the page for {card.property}: drag across it.</span></>;
+}
+
+function isClassShut({ list, address }: RecordsPage, cls: ClassSlug | null): boolean {
+  if (!cls) return false;
+  return list.shut[cls] ?? (cls !== (address.openCls ?? list.ruled[list.ruled.length - 1]?.slug) && !list.q);
+}
+
+function isGeneratedKey(h: CourseHitX, openCls: ClassSlug | null): boolean {
+  return h.record_external_identifier.startsWith(`${NOUN[(h.cls ?? openCls ?? "course") as ClassSlug][0]}-`);
 }

@@ -46,24 +46,47 @@ export interface Point { at: string; kind: "golden" | "output"; c: Counts; lines
  * several catalogs, which score apart, a day is one point); each point sums every pair's latest score up to then, so
  * a score of one property doesn't drop the others. */
 export function series(h: ScoreHistory, pairs: Pair[], tree: Tree, n = 7): Point[] {
+  const cur = new Map<string, ScoreLine>();
+  const out: Point[] = [];
+  for (const group of groupRuns(scoreEvents(h, pairs))) {
+    for (const e of group) cur.set(e.key, e.l);
+    const c = sumLatest(cur, tree);
+    if (c) out.push({ at: group[0].l.at, kind: kindOf(group), c, lines: group.map((e) => e.l) });
+  }
+  return out.slice(-n);
+}
+
+interface ScoreEvent { key: string; group: string; l: ScoreLine; prev: ScoreLine | null }
+
+function scoreEvents(h: ScoreHistory, pairs: Pair[]): ScoreEvent[] {
   const byDay = new Set(pairs.map(([cat]) => cat)).size > 1;
   const events = pairs.flatMap(([cat, col]) => linesOf(h, [cat, col]).map((l, i, all) =>
     ({ key: `${cat}|${col}`, group: byDay ? l.at.slice(0, 10) : `${cat}|${l.score}`, l, prev: all[i - 1] ?? null })));
   events.sort((a, b) => a.l.at.localeCompare(b.l.at));
-  const cur = new Map<string, ScoreLine>();
-  const out: Point[] = [];
-  for (let i = 0; i < events.length;) {
-    const g = events[i].group, mine = [];
-    while (i < events.length && events[i].group === g) mine.push(events[i++]);
-    for (const e of mine) cur.set(e.key, e.l);
-    const t = mine[0].l.trigger;
-    const kind = t === "golden-published" ? "golden" : t === "new-output" ? "output"
-      : mine.some((e) => e.prev && e.prev.extract_run !== e.l.extract_run) ? "output" : "golden";
-    let c: Counts | null = null;
-    for (const l of cur.values()) if (l[tree]) c = add(c ?? ZERO, l[tree]);
-    if (c) out.push({ at: mine[0].l.at, kind, c, lines: mine.map((e) => e.l) });
+  return events;
+}
+
+// one group per run of consecutive events of the same score (or day)
+function groupRuns(events: ScoreEvent[]): ScoreEvent[][] {
+  const groups: ScoreEvent[][] = [];
+  for (const e of events) {
+    const last = groups[groups.length - 1];
+    if (last && last[0].group === e.group) last.push(e); else groups.push([e]);
   }
-  return out.slice(-n);
+  return groups;
+}
+
+function kindOf(group: ScoreEvent[]): Point["kind"] {
+  const t = group[0].l.trigger;
+  if (t === "golden-published") return "golden";
+  if (t === "new-output") return "output";
+  return group.some((e) => e.prev && e.prev.extract_run !== e.l.extract_run) ? "output" : "golden";
+}
+
+function sumLatest(cur: Map<string, ScoreLine>, tree: Tree): Counts | null {
+  let c: Counts | null = null;
+  for (const l of cur.values()) if (l[tree]) c = add(c ?? ZERO, l[tree]);
+  return c;
 }
 
 /** The four scopes (spec §2): catalogs × properties, by whether one catalog and one property is picked. */

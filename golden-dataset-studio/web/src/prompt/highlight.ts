@@ -36,34 +36,6 @@ export function downloadName(catalogShort: string, scope: string): string {
 export type LineKind = "boiler" | "var" | "def";
 const VARIABLE = /^## (Rule `|The \d+ rules|Questions for the institution|Comments on the ruleset)/;
 
-export function lineKinds(text: string): LineKind[] {
-  const lines = text.replace(/\n$/, "").split("\n");
-  const out: LineKind[] = [];
-  let section: LineKind = "boiler", inRule = false, defDone = false, inDef = false, inFence = false;
-  for (const line of lines) {
-    if (!inFence && line.startsWith("## ")) {
-      section = VARIABLE.test(line) ? "var" : "boiler";
-      inRule = line.startsWith("## Rule `");
-      defDone = false;
-    }
-    const fence = /^\s*```/.test(line);
-    if (fence && !inFence) {
-      inFence = true;
-      inDef = inRule && !defDone && /^\s*```json/.test(line);
-      out.push(inDef ? "def" : section);
-      continue;
-    }
-    if (fence && inFence) {
-      out.push(inDef ? "def" : section);
-      if (inDef) defDone = true;
-      inFence = inDef = false;
-      continue;
-    }
-    out.push(inDef ? "def" : section);
-  }
-  return out;
-}
-
 /** Consecutive lines of one kind, as text: the rendered preview draws each run in its own band. */
 export function runs(text: string): { kind: LineKind; text: string }[] {
   const lines = text.replace(/\n$/, "").split("\n");
@@ -75,4 +47,41 @@ export function runs(text: string): { kind: LineKind; text: string }[] {
     else out.push({ kind: kinds[i], text: l });
   });
   return out;
+}
+
+export function lineKinds(text: string): LineKind[] {
+  const state: KindState = { section: "boiler", inRule: false, defDone: false, inDef: false, inFence: false };
+  return text.replace(/\n$/, "").split("\n").map((line) => kindOf(line, state));
+}
+
+interface KindState { section: LineKind; inRule: boolean; defDone: boolean; inDef: boolean; inFence: boolean }
+
+function kindOf(line: string, state: KindState): LineKind {
+  if (!state.inFence && line.startsWith("## ")) enterSection(line, state);
+  const fence = /^\s*```/.test(line);
+  if (fence && state.inFence) return closeFence(state);
+  if (fence) openFence(line, state);
+  return currentKind(state);
+}
+
+function enterSection(heading: string, state: KindState): void {
+  state.section = VARIABLE.test(heading) ? "var" : "boiler";
+  state.inRule = heading.startsWith("## Rule `");
+  state.defDone = false;
+}
+
+function openFence(line: string, state: KindState): void {
+  state.inFence = true;
+  state.inDef = state.inRule && !state.defDone && /^\s*```json/.test(line);
+}
+
+function closeFence(state: KindState): LineKind {
+  const kind = currentKind(state);
+  if (state.inDef) state.defDone = true;
+  state.inFence = state.inDef = false;
+  return kind;
+}
+
+function currentKind(state: KindState): LineKind {
+  return state.inDef ? "def" : state.section;
 }
