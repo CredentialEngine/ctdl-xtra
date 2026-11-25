@@ -32,19 +32,7 @@ const LITERAL = new Set(["picker", "config", "queue", "current", "approve", "fil
 
 /** `/api/catalogs/avc/rules/course-description/rows` → `/api/catalogs/{catalog}/rules/{rule_id}/rows` */
 export function urlTemplate(path: string): string {
-  const parts = path.split("/");
-  for (let i = 0; i < parts.length - 1; i++) {
-    const id = ID_AFTER[parts[i]];
-    if (id && parts[i + 1] && !LITERAL.has(parts[i + 1])) {
-      parts[i + 1] = id;
-      i++;
-    }
-  }
-  // golden files: /files/page/<stem>.json, /files/<table>.parquet
-  // a property's review, findings and threads: /properties/<class>/<column>/...
-  const t = parts.join("/").replace(/\/api\/properties\/[^/]+\/[^/]+/, "/api/properties/{cls}/{column}");
-  return t.replace(/\/files\/page\/[^/]+\.(json|html)$/, "/files/page/{stem}.$1")
-    .replace(/\/files\/(?!content$)[^/]+\.(parquet|json)$/, "/files/{table}.$1");
+  return templateGoldenFiles(templateProperty(templateIds(path)));
 }
 
 /** What a request that changes something does, for `ce.action` (GETs have none). */
@@ -63,3 +51,26 @@ export function actionOf(method: string, template: string): string | null {
 
 /** Requests the web app repeats on a timer: no span of their own (they'd be most of the spans), a count instead. */
 export const POLL = /\/agent-runs\/(current|queue)$/;
+
+function templateIds(path: string): string {
+  const parts = path.split("/");
+  for (let i = 0; i < parts.length - 1; i++) {
+    const id = ID_AFTER[parts[i]];
+    if (id && parts[i + 1] && !LITERAL.has(parts[i + 1])) {
+      parts[i + 1] = id;
+      i++;
+    }
+  }
+  return parts.join("/");
+}
+
+// a property's review, findings and threads: /properties/<class>/<column>/...
+function templateProperty(path: string): string {
+  return path.replace(/\/api\/properties\/[^/]+\/[^/]+/, "/api/properties/{cls}/{column}");
+}
+
+// golden files: /files/page/<stem>.json, /files/<table>.parquet
+function templateGoldenFiles(path: string): string {
+  return path.replace(/\/files\/page\/[^/]+\.(json|html)$/, "/files/page/{stem}.$1")
+    .replace(/\/files\/(?!content$)[^/]+\.(parquet|json)$/, "/files/{table}.$1");
+}

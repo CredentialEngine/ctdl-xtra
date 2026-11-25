@@ -290,11 +290,6 @@
       "count": 1
     }
   },
-  "src/telemetry/otel.ts": {
-    "max-lines-per-function": {
-      "count": 4
-    }
-  },
   "src/tour/index.tsx": {
     "max-lines-per-function": {
       "count": 3
