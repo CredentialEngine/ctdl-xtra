@@ -386,7 +386,7 @@ class AzureRoot(Root):
         cut = len(self.prefix) + 1 if self.prefix else 0
         return {b.name[cut:]: b.size for b in self.container.list_blobs(name_starts_with=start)}
 
-    @telemetry.storage_op("local_path")
+    @telemetry.storage_op("local_path", call_span=False)
     def local_path(self, path: str, mutable: bool = False) -> Path:
         dest = self.cache / _clean(path)
         etag_file = dest.with_name(dest.name + ".etag")
@@ -406,10 +406,13 @@ class AzureRoot(Root):
             dest.parent.mkdir(parents=True, exist_ok=True)
             fd, tmp = tempfile.mkstemp(dir=dest.parent, prefix=f".{dest.name}.")
             try:
-                with os.fdopen(fd, "wb") as fh:
+                with os.fdopen(fd, "wb") as fh, telemetry.azure_call(self, "download", path) as call:
                     downloader = self._blob(path).download_blob(max_concurrency=4)
+                    size = downloader.readinto(fh)
                     telemetry.count("stats.storage.azure.downloads")
-                    telemetry.count("stats.storage.azure.bytes_downloaded", downloader.readinto(fh))
+                    telemetry.count("stats.storage.azure.bytes_downloaded", size)
+                    if call is not None:
+                        call.set_attribute("ce.storage.bytes", size)
                 os.replace(tmp, dest)
             except ResourceNotFoundError:
                 os.unlink(tmp)

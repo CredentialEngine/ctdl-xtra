@@ -281,3 +281,35 @@ def test_a_call_to_azure_blob_storage_is_a_client_span_and_a_local_file_is_not(t
         == ("azure-blob-storage", "acct.blob.core.windows.net", "box", "cat/manifest.json", 5)
     assert listed.attributes["ce.storage.items"] == 2
     assert [s.name for s in exporter.get_finished_spans()].count("azure.blob.read") == 1  # the local read made none
+
+
+def test_a_file_from_the_disk_cache_is_not_a_call_to_azure_and_a_download_is(traced):
+    """`local_path` answers from its disk cache most of the time: only a download is drawn as a call to the bucket.
+    The host comes from the client's URL, so Azurite's is 127.0.0.1:10000, not a made-up blob.core.windows.net."""
+    _, exporter = traced
+
+    class Service:
+        url = "http://127.0.0.1:10000/devstoreaccount1"
+
+    class Fake:
+        uri, account, container_name, service = "azure://http://127.0.0.1:10000/devstoreaccount1/box", "x", "box", Service()
+
+        @telemetry.storage_op("local_path", call_span=False)
+        def local_path(self, path, cached):
+            if not cached:
+                with telemetry.azure_call(self, "download", path) as call:
+                    call.set_attribute("ce.storage.bytes", 7)
+            return path
+
+    token = telemetry._counters.set({})
+    try:
+        with telemetry.span("request"):
+            Fake().local_path("cat/matches.parquet", cached=True)
+            Fake().local_path("cat/occurrences.parquet", cached=False)
+    finally:
+        telemetry._counters.reset(token)
+    calls = [s for s in exporter.get_finished_spans() if s.kind.name == "CLIENT"]
+    assert [s.name for s in calls] == ["azure.blob.download"]
+    a = calls[0].attributes
+    assert (a["ce.storage.path"], a["ce.storage.bytes"], a["server.address"], a["server.port"]) \
+        == ("cat/occurrences.parquet", 7, "127.0.0.1", 10000)

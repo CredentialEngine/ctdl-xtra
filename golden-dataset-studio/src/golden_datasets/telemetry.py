@@ -295,16 +295,38 @@ AZURE_PEER = "azure-blob-storage"
 
 
 def _azure_attrs(root, kind: str, path: object) -> dict:
-    return {"peer.service": AZURE_PEER, "server.address": f"{getattr(root, 'account', '')}.blob.core.windows.net",
-            "cloud.provider": "azure", "ce.storage.container": getattr(root, "container_name", ""),
-            "ce.storage.op": kind, "ce.storage.path": str(path)[:MAX_VALUE]}
+    """The service's host from the client's URL (`<account>.blob.core.windows.net`, or Azurite's `127.0.0.1:10000`)."""
+    from urllib.parse import urlparse
+
+    url = urlparse(getattr(getattr(root, "service", None), "url", "") or "")
+    host = url.hostname or f"{getattr(root, 'account', '')}.blob.core.windows.net"
+    out = {"peer.service": AZURE_PEER, "server.address": host, "cloud.provider": "azure",
+           "ce.storage.container": getattr(root, "container_name", ""), "ce.storage.op": kind,
+           "ce.storage.path": str(path)[:MAX_VALUE]}
+    if url.port:
+        out["server.port"] = url.port
+    return out
 
 
-def storage_op(kind: str):
+@contextlib.contextmanager
+def azure_call(root, kind: str, path: object):
+    """A CLIENT span around one call to Azure Blob Storage made inside a storage method that usually doesn't make one
+    (`local_path` downloads only when its disk cache lacks the file). Yields the span, or None."""
+    if not _enabled or _counters.get() is None:
+        yield None
+        return
+    with _client_span(f"azure.blob.{kind}", _azure_attrs(root, kind, path)) as sp:
+        yield sp
+
+
+def storage_op(kind: str, call_span: bool = True):
     """Decorator for storage methods: counts calls, bytes and time into the request's `ce.stats.storage.*` (Honeycomb's
     advice: roll-up counts on the request's span rather than a span per blob read). A call to Azure Blob Storage also
     gets a CLIENT span of its own (`azure.blob.<kind>`, `peer.service=azure-blob-storage`), so the service map draws
-    the Studio's edge to the bucket and a slow request shows which blobs it waited on; local files get none."""
+    the Studio's edge to the bucket and a slow request shows which blobs it waited on; local files get none.
+    `call_span=False`: the method mostly answers from a local cache (`local_path`), so it's counted but gets no CLIENT
+    span; it opens one with `azure_call` around the calls it does make. Otherwise every cache hit was drawn as a call
+    to Azure (a WVU Rules request showed some 90 of them, each 0.0 ms)."""
     def wrap(fn):
         def inner(self, *a, **kw):
             if not _enabled or _counters.get() is None:
@@ -313,7 +335,7 @@ def storage_op(kind: str):
             where = "azure" if self.uri.startswith("azure://") else "local"
             data = a[1] if len(a) > 1 else kw.get("data")
             cm = (_client_span(f"azure.blob.{kind}", _azure_attrs(self, kind, a[0] if a else kw.get("path", kw.get("prefix", ""))))
-                  if where == "azure" else contextlib.nullcontext(None))
+                  if where == "azure" and call_span else contextlib.nullcontext(None))
             with cm as client:
                 try:
                     out = fn(self, *a, **kw)
