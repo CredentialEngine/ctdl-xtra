@@ -119,39 +119,6 @@
       "count": 4
     }
   },
-  "src/pagepane/HighlightBar.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/pagepane/PagePane.tsx": {
-    "max-lines-per-function": {
-      "count": 5
-    }
-  },
-  "src/pagepane/SourceView.tsx": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
-  "src/pagepane/dom.ts": {
-    "max-lines-per-function": {
-      "count": 4
-    }
-  },
-  "src/pagepane/paint.ts": {
-    "max-depth": {
-      "count": 5
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
-  "src/pagepane/view.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/prompt/PromptModal.tsx": {
     "max-lines-per-function": {
       "count": 2
@@ -273,21 +240,6 @@
   "src/shell/theme.tsx": {
     "max-lines-per-function": {
       "count": 1
-    }
-  },
-  "src/tour/index.tsx": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
-  "src/tour/model.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/tour/steps.tsx": {
-    "max-lines-per-function": {
-      "count": 2
     }
   },
   "src/valuediff/ValueDiff.tsx": {
