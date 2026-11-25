@@ -32,47 +32,68 @@ export function useFocusPage(catalog: string, stem: string | null): TabRef | nul
   return tab;
 }
 
-/** The newest other ruleset whose extraction has this rule (looked up only when this one doesn't). */
-function useRulesetWith(catalog: CatalogDetail, ruleId: string, ext: string | null, on: boolean) {
-  const [found, setFound] = useState<{ extraction: string; ruleset_version: number } | null>(null);
-  useEffect(() => {
-    setFound(null);
-    if (!on) return;
-    let live = true;
-    const here = ext ?? catalog.extraction;
-    const others = [...catalog.extractions].filter((x) => x.extraction !== here)
-      .sort((a, b) => b.ruleset_version - a.ruleset_version);
-    (async () => {
-      for (const x of others) {
-        try { await api.rule(catalog.short, ruleId, x.extraction); if (live) setFound(x); return; } catch { /* not in it */ }
-      }
-    })();
-    return () => { live = false; };
-  }, [catalog, ruleId, ext, on]);
-  return found;
-}
-
-export function NotHere({ catalog, ruleId, ruleName, focus, ext, version, why, onAnyone }: {
-  catalog: CatalogDetail; ruleId: string; ruleName: string; focus: string; ext: string | null; version: number;
-  why: Missing; onAnyone?: () => void;
-}) {
+export function NotHere({ catalog, ruleId, ruleName, focus, ext, version, why, onAnyone }: NotHereProps) {
   const other = useRulesetWith(catalog, ruleId, ext, why === "rule");
   const record = focusStem(focus) ? "This record" : focus;
   const otherHref = other && href(catalog.short, "rules", ruleId,
     { row: focus, ext: other.extraction === catalog.extraction ? null : other.extraction });
   return (
     <div className="not-here" data-testid="not-here">
-      {why === "rule" ? <>
-        <b>{record} has no value in ruleset v{version}:</b> this ruleset has no rule <span className="mono">{ruleId}</span>.
-        {" "}Its saved page is on the right.
-        {otherHref && <> <a href={otherHref}>See it in ruleset v{other.ruleset_version} →</a></>}
-      </> : why === "row" ? <>
-        <b>{record} has no value for {ruleName} in ruleset v{version}:</b> the rule found nothing for it in this
-        ruleset's extraction. Its saved page is on the right; the rows below are the rule's other values.
-      </> : <>
-        <b>{record} isn't among the rows shown:</b> a filter above hides it. Its saved page is on the right.
-        {onAnyone && <> <button className="linkbtn" onClick={onAnyone}>Show everyone's rows</button></>}
-      </>}
+      {why === "rule" ? <NoSuchRule record={record} ruleId={ruleId} version={version} other={other} otherHref={otherHref} />
+        : why === "row" ? <NoValue record={record} ruleName={ruleName} version={version} />
+        : <FilteredOut record={record} onAnyone={onAnyone} />}
     </div>
   );
+}
+
+interface NotHereProps {
+  catalog: CatalogDetail; ruleId: string; ruleName: string; focus: string; ext: string | null; version: number;
+  why: Missing; onAnyone?: () => void;
+}
+
+type RulesetRef = { extraction: string; ruleset_version: number };
+
+/** The newest other ruleset whose extraction has this rule (looked up only when this one doesn't). */
+function useRulesetWith(catalog: CatalogDetail, ruleId: string, ext: string | null, on: boolean) {
+  const [found, setFound] = useState<RulesetRef | null>(null);
+  useEffect(() => {
+    setFound(null);
+    if (!on) return;
+    let live = true;
+    void findRulesetWith(catalog, ruleId, ext ?? catalog.extraction, (x) => { if (live) setFound(x); });
+    return () => { live = false; };
+  }, [catalog, ruleId, ext, on]);
+  return found;
+}
+
+async function findRulesetWith(catalog: CatalogDetail, ruleId: string, here: string, onFound: (x: RulesetRef) => void) {
+  const others = [...catalog.extractions].filter((x) => x.extraction !== here)
+    .sort((a, b) => b.ruleset_version - a.ruleset_version);
+  for (const x of others) {
+    try { await api.rule(catalog.short, ruleId, x.extraction); onFound(x); return; } catch { /* not in it */ }
+  }
+}
+
+function NoSuchRule({ record, ruleId, version, other, otherHref }: {
+  record: string; ruleId: string; version: number; other: RulesetRef | null; otherHref: string | null;
+}) {
+  return (<>
+    <b>{record} has no value in ruleset v{version}:</b> this ruleset has no rule <span className="mono">{ruleId}</span>.
+    {" "}Its saved page is on the right.
+    {otherHref && <> <a href={otherHref}>See it in ruleset v{other!.ruleset_version} →</a></>}
+  </>);
+}
+
+function NoValue({ record, ruleName, version }: { record: string; ruleName: string; version: number }) {
+  return (<>
+    <b>{record} has no value for {ruleName} in ruleset v{version}:</b> the rule found nothing for it in this
+    ruleset's extraction. Its saved page is on the right; the rows below are the rule's other values.
+  </>);
+}
+
+function FilteredOut({ record, onAnyone }: { record: string; onAnyone?: () => void }) {
+  return (<>
+    <b>{record} isn't among the rows shown:</b> a filter above hides it. Its saved page is on the right.
+    {onAnyone && <> <button className="linkbtn" onClick={onAnyone}>Show everyone's rows</button></>}
+  </>);
 }

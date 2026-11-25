@@ -97,12 +97,21 @@ export function ago(at: string | null | undefined, now = Date.now()): string {
   const m = Math.floor((now - t) / 60_000);
   if (m < 1) return "just now";
   if (m < 60) return m === 1 ? "1 minute ago" : `${m} minutes ago`;
-  const dayStart = (x: number) => { const d = new Date(x); d.setHours(0, 0, 0, 0); return d.getTime(); };
-  const days = Math.round((dayStart(now) - dayStart(t)) / 86_400_000);
+  const days = daysBetween(t, now);
   const h = Math.floor(m / 60);
   if (days === 0 || h < 6) return h === 1 ? "1 hour ago" : `${h} hours ago`;
   if (days === 1) return "yesterday";
   if (days < 7) return `${days} days ago`;
+  return dateWords(t, now);
+}
+
+function daysBetween(t: number, now: number): number {
+  const dayStart = (x: number) => { const d = new Date(x); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  return Math.round((dayStart(now) - dayStart(t)) / 86_400_000);
+}
+
+/** "Oct 21", with the year when it isn't this year. */
+function dateWords(t: number, now: number): string {
   const d = new Date(t);
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric",
     ...(d.getFullYear() !== new Date(now).getFullYear() ? { year: "numeric" } : {}) });
@@ -121,26 +130,31 @@ export function comparedLine(e: Pick<EventBrief, "compared_with" | "at"> | null 
 }
 
 /** The history line under a row: what happened to its verdict across versions, notes, comments, questions. */
-export function historyItems(r: { state: RowStateName | null; verdict: EventBrief | null; reattached?: boolean;
-  comments: EventBrief[]; page_questions?: EventBrief[] }): HistItem[] {
-  const out: HistItem[] = [];
+export function historyItems(r: HistoryRow): HistItem[] {
+  return [...stateItems(r), ...verdictItems(r), ...pageQuestionItems(r.page_questions ?? []), ...commentItems(r.comments)];
+}
+
+type HistoryRow = { state: RowStateName | null; verdict: EventBrief | null; reattached?: boolean;
+  comments: EventBrief[]; page_questions?: EventBrief[] };
+
+/** What happened to the verdict since it was made: fixed, still wrong, changed, re-attached. */
+function stateItems(r: HistoryRow): HistItem[] {
   const v = r.verdict;
   const who = v?.author ?? "Someone";
-  switch (r.state) {
-    case "fixed":
-      out.push({ cls: "good", text: `Fixed: ${who} marked the previous version wrong; this matches the text he selected.` });
-      break;
-    case "still-wrong":
-      out.push({ cls: "bad", text: `Still wrong: ${who} marked the previous version wrong; the new value still differs from the text he selected.` });
-      break;
-    case "changed-since-correct":
-      out.push({ cls: "bad", text: `Changed: ${who} marked the previous version correct, but the value has changed since.` });
-      break;
-    default:
-  }
+  const out: HistItem[] = [];
+  if (r.state === "fixed") out.push({ cls: "good", text: `Fixed: ${who} marked the previous version wrong; this matches the text he selected.` });
+  if (r.state === "still-wrong") out.push({ cls: "bad", text: `Still wrong: ${who} marked the previous version wrong; the new value still differs from the text he selected.` });
+  if (r.state === "changed-since-correct") out.push({ cls: "bad", text: `Changed: ${who} marked the previous version correct, but the value has changed since.` });
   if (r.reattached && v) out.push({ cls: "muted", text: `Re-attached: ${who}'s verdict was made before the record locator changed.` });
+  return out;
+}
+
+/** The verdict's own lines: what was expected, why it is wrong, its note or question. */
+function verdictItems(r: HistoryRow): HistItem[] {
+  const v = r.verdict;
   const vc = v && r.state !== "fixed" ? comparedLine(v) : undefined;
   const vid = v?.annotation_id;
+  const out: HistItem[] = [];
   if (v && (r.state === "wrong" || r.state === "still-wrong" || r.state === "missing") && v.expected?.text) {
     out.push({ cls: "note", text: `expected “${clip(v.expected.text, 90)}”`, compared: v.note ? undefined : vc, id: vid });
   }
@@ -149,11 +163,19 @@ export function historyItems(r: { state: RowStateName | null; verdict: EventBrie
     if (r.state === "question") out.push({ cls: "expert", text: `Question for the institution: “${v.note}”`, id: vid });
     else if (r.state !== "fixed") out.push({ cls: "note", author: v.author, text: `“${v.note}”`, compared: vc, id: vid });
   } else if (r.state === "question") out.push({ cls: "expert", text: "Waiting for the institution's answer" });
-  for (const q of r.page_questions ?? []) {
-    out.push({ cls: "expert", text: q.note ? `Question for the institution: “${q.note}”` : "Question for the institution (no note yet)", id: q.annotation_id });
-  }
-  let pinned = 0;  // comments pinned to text on the page: numbered like their bubbles there
-  for (const c of r.comments) {
+  return out;
+}
+
+function pageQuestionItems(questions: EventBrief[]): HistItem[] {
+  return questions.map((q) => ({ cls: "expert", id: q.annotation_id,
+    text: q.note ? `Question for the institution: “${q.note}”` : "Question for the institution (no note yet)" }));
+}
+
+/** Comments pinned to text on the page are numbered like their bubbles there. */
+function commentItems(comments: EventBrief[]): HistItem[] {
+  const out: HistItem[] = [];
+  let pinned = 0;
+  for (const c of comments) {
     const n = c.anchor?.css_path ? ++pinned : undefined;
     if (!c.note) continue;
     if (isAi(c)) { out.push(aiItem(c)); continue; }
@@ -171,31 +193,39 @@ function aiItem(c: EventBrief & { run_at?: string | null }): HistItem {
 /** A report row's history line (one-rule-runs §1.4, §1.6; contract §2.6): every live verdict and comment, oldest
  * first. A verdict's note, Claude's comments with their run, and what people did after the run said as such, with a
  * relative time whose tooltip has the date and time zone: "Jared Diener marked it correct 12 minutes ago, after this run." */
-export function reportHistory(events: (EventBrief & { run_at?: string | null; after_run?: boolean; kind?: string })[]): HistItem[] {
+export function reportHistory(events: ReportEvent[]): HistItem[] {
   const out: HistItem[] = [];
   let pinned = 0;
   for (const x of events) {
     // the CLI's resolved report names an item's type `kind` (contract §3.3); `…/rows` sends `type`
     const e = x.type ? x : { ...x, type: x.kind as EventBrief["type"] };
-    if (e.type === "comment") {
-      const n = e.anchor?.css_path ? ++pinned : undefined;
-      if (!e.note) continue;
-      if (isAi(e)) { out.push(aiItem(e)); continue; }
-      out.push({ cls: "comment", author: e.author, text: `“${e.note}”`, n, id: e.annotation_id,
-                 ...(e.after_run ? { when: e.at, after: ", after this run." } : {}) });
-      continue;
-    }
-    if (e.type !== "verdict") continue;
-    const note = e.note ? `“${e.note}”` : e.expected?.text ? `expected “${clip(e.expected.text, 90)}”` : "";
-    if (e.after_run) {
-      out.push({ cls: e.verdict === "correct" ? "good" : e.verdict === "wrong" ? "bad" : "note",
-                 text: `${e.author} ${verdictWords(e)}`, when: e.at, after: `, after this run.${note ? ` ${note}` : ""}`,
-                 id: e.annotation_id });
-    } else if (e.verdict === "question") {
-      out.push({ cls: "expert", text: e.note ? `Question for the institution: “${e.note}”` : "Waiting for the institution's answer", id: e.annotation_id });
-    } else if (note) out.push({ cls: "note", author: e.author, text: note, id: e.annotation_id });
+    const n = e.type === "comment" && e.anchor?.css_path ? ++pinned : undefined;
+    const item = e.type === "comment" ? reportComment(e, n) : e.type === "verdict" ? reportVerdict(e) : null;
+    if (item) out.push(item);
   }
   return out;
+}
+
+type ReportEvent = EventBrief & { run_at?: string | null; after_run?: boolean; kind?: string };
+
+function reportComment(e: ReportEvent, n: number | undefined): HistItem | null {
+  if (!e.note) return null;
+  if (isAi(e)) return aiItem(e);
+  return { cls: "comment", author: e.author, text: `“${e.note}”`, n, id: e.annotation_id,
+           ...(e.after_run ? { when: e.at, after: ", after this run." } : {}) };
+}
+
+function reportVerdict(e: ReportEvent): HistItem | null {
+  const note = e.note ? `“${e.note}”` : e.expected?.text ? `expected “${clip(e.expected.text, 90)}”` : "";
+  if (e.after_run) {
+    return { cls: e.verdict === "correct" ? "good" : e.verdict === "wrong" ? "bad" : "note",
+             text: `${e.author} ${verdictWords(e)}`, when: e.at, after: `, after this run.${note ? ` ${note}` : ""}`,
+             id: e.annotation_id };
+  }
+  if (e.verdict === "question") {
+    return { cls: "expert", text: e.note ? `Question for the institution: “${e.note}”` : "Waiting for the institution's answer", id: e.annotation_id };
+  }
+  return note ? { cls: "note", author: e.author, text: note, id: e.annotation_id } : null;
 }
 
 /** "marked it correct", "marked it wrong", "marked it Not on the page", "asked the institution". */
@@ -297,12 +327,18 @@ export function verdictEvent(author: string, target: Target, prev: EventBrief | 
   const supersedes = prev && prev.type === "verdict" ? prev.annotation_id : null;
   if ("verdict" in what) return { type: "verdict", author, target, verdict: "correct", supersedes };
   const d = what.draft;
+  if (d.mode === "comment" && !d.question) return draftComment(author, target, d);
+  return draftVerdict(author, target, d, supersedes, value);
+}
+
+function draftComment(author: string, target: Target, d: Draft): NewEvent {
+  const a = d.anchor;
+  return { type: "comment", author, target, note: d.note.trim() || null,
+           ...(a ? { anchor: { css_path: a.css_path, char_start: a.char_start, char_end: a.char_end, text: a.text } } : {}) };
+}
+
+function draftVerdict(author: string, target: Target, d: Draft, supersedes: string | null, value?: string | null): NewEvent {
   const note = d.note.trim() || null;
-  if (d.mode === "comment" && !d.question) {
-    const a = d.anchor;
-    return { type: "comment", author, target, note,
-             ...(a ? { anchor: { css_path: a.css_path, char_start: a.char_start, char_end: a.char_end, text: a.text } } : {}) };
-  }
   const verdict: Verdict = d.mode === "comment" ? "question" : "wrong";
   // a ✗ with a comment pinned to text: the note is that comment (pinnedComment), saved after the verdict
   return { type: "verdict", author, target, verdict, note: verdict === "wrong" && d.anchor ? null : note, supersedes,
