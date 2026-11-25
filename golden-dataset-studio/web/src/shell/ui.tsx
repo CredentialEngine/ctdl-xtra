@@ -24,6 +24,14 @@ export function useKeyHints(hint: ReactNode, deps: unknown[] = []): void {
   }, deps);
 }
 
+/** Listen for a window event while the calling component is mounted. Pass a stable listener (useCallback). */
+export function useWindowEvent(type: string, listener: (e: Event) => void): void {
+  useEffect(() => {
+    window.addEventListener(type, listener);
+    return () => window.removeEventListener(type, listener);
+  }, [type, listener]);
+}
+
 export function toast(msg: string, ms = 1800): void {
   const t = document.createElement("div");
   t.className = "toast";

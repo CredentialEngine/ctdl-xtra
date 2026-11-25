@@ -1,9 +1,4 @@
 {
-  "src/App.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/agent/AiStat.tsx": {
     "max-lines-per-function": {
       "count": 2
