@@ -25,21 +25,6 @@ export function Expansion(p: ExpansionProps) {
   return <WrongExpansion {...p} note={note} />;
 }
 
-function WrongExpansion({ draft, propertyRule, emptyValue, onChange, onSave, onCancel, note }: ExpansionProps & { note: RefObject<HTMLInputElement> }) {
-  return (
-    <div className="expand wrong" onClick={stopEvent}>
-      {draft.captures.length
-        ? <CapturedPieces draft={draft} propertyRule={propertyRule} onChange={onChange} />
-        : <PickPrompt propertyRule={propertyRule} emptyValue={emptyValue} />}
-      {propertyRule && <WhyWrong reasons={draft.reasons ?? []} onChange={(reasons) => onChange({ ...draft, reasons })} />}
-      {draft.anchor && <PinnedAnchor draft={draft} anchor={draft.anchor} onChange={onChange} />}
-      <NoteInput note={note} draft={draft} onChange={onChange}
-        placeholder={draft.anchor ? "Your comment on that text" : "Note for whoever fixes the rule (optional)"} />
-      <SaveButtons label="Save · wrong" onSave={onSave} onCancel={onCancel} />
-    </div>
-  );
-}
-
 /** The history line under a row. `stacked` (an AI run's report): one item per line, no " · " between them; `lead`:
  * items shown first (the report's "In v9: …"). */
 export function HistoryLine({ linked, stacked, lead, items: given, ...props }: HistoryLineProps) {
@@ -124,6 +109,21 @@ function useFocusedNote(draft: Draft): RefObject<HTMLInputElement> {
   const note = useRef<HTMLInputElement>(null);
   useEffect(() => { if (draft.mode === "comment" || draft.anchor) note.current?.focus(); }, [draft.mode, draft.anchor]);
   return note;
+}
+
+function WrongExpansion({ draft, propertyRule, emptyValue, onChange, onSave, onCancel, note }: ExpansionProps & { note: RefObject<HTMLInputElement> }) {
+  return (
+    <div className="expand wrong" onClick={stopEvent}>
+      {draft.captures.length
+        ? <CapturedPieces draft={draft} propertyRule={propertyRule} onChange={onChange} />
+        : <PickPrompt propertyRule={propertyRule} emptyValue={emptyValue} />}
+      {propertyRule && <WhyWrong reasons={draft.reasons ?? []} onChange={(reasons) => onChange({ ...draft, reasons })} />}
+      {draft.anchor && <PinnedAnchor draft={draft} anchor={draft.anchor} onChange={onChange} />}
+      <NoteInput note={note} draft={draft} onChange={onChange}
+        placeholder={draft.anchor ? "Your comment on that text" : "Note for whoever fixes the rule (optional)"} />
+      <SaveButtons label="Save · wrong" onSave={onSave} onCancel={onCancel} />
+    </div>
+  );
 }
 
 function CommentExpansion({ draft, note, onChange, onSave, onCancel }: {
