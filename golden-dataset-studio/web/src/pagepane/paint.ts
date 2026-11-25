@@ -34,6 +34,7 @@ export interface Resolved {
 }
 
 const OVERLAY_ID = "gds-overlay";
+
 const NAMES: Record<string, string> = { value: "gds-value", expected: "gds-expected", excluded: "gds-excluded", mark: "gds-mark" };
 
 // Fallback styles in case the render route's head styles are missing (e.g. an older cached render).
@@ -53,21 +54,150 @@ const OVERLAY_CSS = `
 #gds-overlay .gds-badge.gds-looked{background:#7c3aed;border-radius:4px;font-weight:600}`;
 
 export function resolveAll(doc: Document, highlights: Highlight[]): Resolved[] {
-  const out: Resolved[] = [];
-  for (const h of highlights) {
-    const el = resolvePath(doc, h.cssPath);
-    if (!el) continue;
-    if (h.kind === "block" || h.kind === "looked") {
-      out.push({ h, el, range: null });
-      continue;
-    }
-    const wantsRange = h.charStart != null || !!h.text;
-    const offs = wantsRange ? resolveOffsets(el, h.charStart, h.charEnd, h.text) : null;
-    const range = offs ? rangeFromOffsets(el, offs[0], offs[1]) : null;
-    if (wantsRange && !range && h.kind === "mark") continue; // never mark a guess
-    out.push({ h, el, range });
+  return highlights.flatMap((h) => {
+    const resolved = resolveOne(doc, h);
+    return resolved ? [resolved] : [];
+  });
+}
+
+function resolveOne(doc: Document, h: Highlight): Resolved | null {
+  const el = resolvePath(doc, h.cssPath);
+  if (!el) return null;
+  if (h.kind === "block" || h.kind === "looked") return { h, el, range: null };
+  const wantsRange = h.charStart != null || !!h.text;
+  const range = wantsRange ? rangeOf(el, h) : null;
+  if (wantsRange && !range && h.kind === "mark") return null; // never mark a guess
+  return { h, el, range };
+}
+
+function rangeOf(el: Element, h: Highlight): Range | null {
+  const offsets = resolveOffsets(el, h.charStart, h.charEnd, h.text);
+  return offsets ? rangeFromOffsets(el, offsets[0], offsets[1]) : null;
+}
+
+/** Paint resolved highlights. Returns the element or range to scroll to for `focusId`, if any. */
+export function paint(doc: Document, resolved: Resolved[], focusId?: string | null): Rect | null {
+  const win = doc.defaultView as (Window & typeof globalThis) | null;
+  if (!win || !doc.documentElement) return null;
+  clear(doc);
+  const canvas = canvasOf(doc, win);
+  let focus: Rect | null = null;
+  for (const item of resolved) {
+    const rects = item.range ? paintRange(canvas, item) : paintElement(canvas, item, focusId);
+    if (rects && item.h.id === focusId) focus = item.range ? union(rects) : rects[0];
   }
-  return out;
+  registerHighlights(canvas);
+  return focus;
+}
+
+/** Where one paint() draws: the overlay, plus the CSS Custom Highlight registry when the browser has one. */
+interface Canvas {
+  doc: Document;
+  win: Window;
+  ov: HTMLElement;
+  HL?: new (...r: Range[]) => unknown;
+  reg?: Map<string, unknown>;
+  ranges: Record<string, Range[]>;
+}
+
+function canvasOf(doc: Document, win: Window & typeof globalThis): Canvas {
+  return {
+    doc,
+    win,
+    ov: overlay(doc),
+    HL: (win as unknown as { Highlight?: new (...r: Range[]) => unknown }).Highlight,
+    reg: (win.CSS as unknown as { highlights?: Map<string, unknown> } | undefined)?.highlights,
+    ranges: { value: [], expected: [], excluded: [], mark: [] },
+  };
+}
+
+/** Draws a text range; returns its rects, or null when it has none on screen. */
+function paintRange(canvas: Canvas, { h, range }: Resolved): Rect[] | null {
+  const rects = typeof range!.getClientRects === "function" ? docRects(canvas.win, range!.getClientRects()) : [];
+  if (!rects.length) return null;
+  if (h.kind === "note") paintRangeNote(canvas, h, rects);
+  else paintRangeMarks(canvas, h, range!, rects);
+  return rects;
+}
+
+/** A comment: only its numbered bubble, at the end of the text it is about. */
+function paintRangeNote({ doc, ov }: Canvas, h: Highlight, rects: Rect[]): void {
+  const l = rects[rects.length - 1];
+  if (h.badge != null) badge(doc, ov, h.kind, h.badge, l.left + l.width + 1, l.top - 10);
+}
+
+function paintRangeMarks(canvas: Canvas, h: Highlight, range: Range, rects: Rect[]): void {
+  const { doc, ov, reg, HL, ranges } = canvas;
+  const kind = h.kind;
+  if (reg && HL) ranges[kind]?.push(range);
+  else rects.forEach((r) => box(doc, ov, `gds-fill gds-${kind}`, r));
+  rects.forEach((r) => box(doc, ov, `gds-box gds-${kind}`, r, kind === "mark" ? 1 : 0));
+  if (h.badge != null) {
+    const f = rects[0];
+    // top-left corner, so it covers as little of the surrounding text as possible
+    badge(doc, ov, kind, h.badge, Math.max(0, f.left - 11), f.top - 14);
+  }
+  if (h.removable) {
+    const l = rects[rects.length - 1];
+    removeButton(doc, ov, h.id, l.left + l.width + 2, l.top - 9);
+  }
+}
+
+/** Draws a whole element; returns its rect, or null when it has none on screen. */
+function paintElement(canvas: Canvas, { h, el }: Resolved, focusId?: string | null): Rect[] | null {
+  const rects = docRects(canvas.win, [el.getBoundingClientRect()]);
+  if (!rects.length) return null;
+  const r = rects[0];
+  if (h.kind === "note") paintElementNote(canvas, h, r);
+  else paintElementBox(canvas, h, r, h.id === focusId);
+  return rects;
+}
+
+function paintElementNote({ doc, ov }: Canvas, h: Highlight, r: Rect): void {
+  if (h.badge != null) badge(doc, ov, h.kind, h.badge, r.left + r.width + 1, r.top - 10);
+}
+
+function paintElementBox({ doc, ov }: Canvas, h: Highlight, r: Rect, focused: boolean): void {
+  const kind = h.kind;
+  const st = h.state ? ` gds-${h.state}` : "";
+  box(doc, ov, `gds-box gds-${kind} gds-whole${focused ? " gds-focus" : ""}${st}`, r, kind === "block" ? 2 : 3);
+  if (h.badge == null) return;
+  if (kind === "block") badge(doc, ov, kind, h.badge, Math.max(0, r.left - 10), r.top - 8);
+  else badge(doc, ov, kind, h.badge, Math.max(0, r.left - 26), r.top);
+}
+
+function registerHighlights({ reg, HL, ranges }: Canvas): void {
+  if (!reg || !HL) return;
+  for (const [kind, rs] of Object.entries(ranges)) {
+    if (!rs.length) continue;
+    const hl = new HL(...rs) as { priority?: number };
+    if (kind === "expected" || kind === "excluded") hl.priority = 1;  // a reviewer's piece shows over the value found
+    reg.set(NAMES[kind], hl);
+  }
+}
+
+/** A hover outline for "pick a block" mode (one box, replaced on every call; null removes it). */
+export function hoverBox(doc: Document, el: Element | null): void {
+  const win = doc.defaultView;
+  const ov = overlay(doc);
+  ov.querySelectorAll(".gds-box.gds-hover").forEach((n) => n.remove());
+  if (!el || !win) return;
+  const r = docRects(win, [el.getBoundingClientRect()]);
+  if (r.length) box(doc, ov, "gds-box gds-hover", r[0], 2);
+}
+
+/** Scroll the frame (only the frame, never the parent page) so `r` sits in the middle. */
+export function scrollToRect(win: Window, r: Rect): void {
+  const y = r.top + r.height / 2 - win.innerHeight / 2;
+  win.scrollTo({ top: Math.max(0, y), left: 0, behavior: "auto" });
+}
+
+export function clear(doc: Document): void {
+  const win = doc.defaultView as (Window & typeof globalThis) | null;
+  const reg = (win?.CSS as unknown as { highlights?: Map<string, unknown> } | undefined)?.highlights;
+  if (reg) Object.values(NAMES).forEach((n) => reg.delete(n));
+  const ov = doc.getElementById(OVERLAY_ID);
+  if (ov) ov.querySelectorAll(".gds-box, .gds-badge, .gds-fill, .gds-x").forEach((n) => n.remove());
 }
 
 function overlay(doc: Document): HTMLElement {
@@ -83,14 +213,6 @@ function overlay(doc: Document): HTMLElement {
     doc.documentElement.appendChild(ov); // after <body>: no body element's path changes
   }
   return ov;
-}
-
-export function clear(doc: Document): void {
-  const win = doc.defaultView as (Window & typeof globalThis) | null;
-  const reg = (win?.CSS as unknown as { highlights?: Map<string, unknown> } | undefined)?.highlights;
-  if (reg) Object.values(NAMES).forEach((n) => reg.delete(n));
-  const ov = doc.getElementById(OVERLAY_ID);
-  if (ov) ov.querySelectorAll(".gds-box, .gds-badge, .gds-fill, .gds-x").forEach((n) => n.remove());
 }
 
 interface Rect { left: number; top: number; width: number; height: number }
@@ -134,91 +256,10 @@ function badge(doc: Document, parent: HTMLElement, kind: string, n: number | str
   parent.appendChild(b);
 }
 
-/** Paint resolved highlights. Returns the element or range to scroll to for `focusId`, if any. */
-export function paint(doc: Document, resolved: Resolved[], focusId?: string | null): Rect | null {
-  const win = doc.defaultView as (Window & typeof globalThis) | null;
-  if (!win || !doc.documentElement) return null;
-  clear(doc);
-  const ov = overlay(doc);
-  const HL = (win as unknown as { Highlight?: new (...r: Range[]) => unknown }).Highlight;
-  const reg = (win.CSS as unknown as { highlights?: Map<string, unknown> } | undefined)?.highlights;
-  const ranges: Record<string, Range[]> = { value: [], expected: [], excluded: [], mark: [] };
-  let focus: Rect | null = null;
-
-  for (const { h, el, range } of resolved) {
-    const kind = h.kind;
-    if (range) {
-      const rects = typeof range.getClientRects === "function" ? docRects(win, range.getClientRects()) : [];
-      if (!rects.length) continue;
-      if (kind === "note") {  // a comment: only its numbered bubble, at the end of the text it is about
-        const l = rects[rects.length - 1];
-        if (h.badge != null) badge(doc, ov, kind, h.badge, l.left + l.width + 1, l.top - 10);
-        if (h.id === focusId) focus = union(rects);
-        continue;
-      }
-      if (reg && HL) ranges[kind]?.push(range);
-      else rects.forEach((r) => box(doc, ov, `gds-fill gds-${kind}`, r));
-      rects.forEach((r) => box(doc, ov, `gds-box gds-${kind}`, r, kind === "mark" ? 1 : 0));
-      if (h.badge != null) {
-        const f = rects[0];
-        // top-left corner, so it covers as little of the surrounding text as possible
-        badge(doc, ov, kind, h.badge, Math.max(0, f.left - 11), f.top - 14);
-      }
-      if (h.removable) {
-        const l = rects[rects.length - 1];
-        removeButton(doc, ov, h.id, l.left + l.width + 2, l.top - 9);
-      }
-      if (h.id === focusId) focus = union(rects);
-    } else {
-      const rects = docRects(win, [el.getBoundingClientRect()]);
-      if (!rects.length) continue;
-      const r = rects[0];
-      const focused = h.id === focusId;
-      if (kind === "note") {
-        if (h.badge != null) badge(doc, ov, kind, h.badge, r.left + r.width + 1, r.top - 10);
-        if (focused) focus = r;
-        continue;
-      }
-      const st = h.state ? ` gds-${h.state}` : "";
-      box(doc, ov, `gds-box gds-${kind} gds-whole${focused ? " gds-focus" : ""}${st}`, r, kind === "block" ? 2 : 3);
-      if (h.badge != null) {
-        if (kind === "block") badge(doc, ov, kind, h.badge, Math.max(0, r.left - 10), r.top - 8);
-        else badge(doc, ov, kind, h.badge, Math.max(0, r.left - 26), r.top);
-      }
-      if (focused) focus = r;
-    }
-  }
-  if (reg && HL) {
-    for (const [kind, rs] of Object.entries(ranges)) {
-      if (!rs.length) continue;
-      const hl = new HL(...rs) as { priority?: number };
-      if (kind === "expected" || kind === "excluded") hl.priority = 1;  // a reviewer's piece shows over the value found
-      reg.set(NAMES[kind], hl);
-    }
-  }
-  return focus;
-}
-
 function union(rects: Rect[]): Rect {
   const l = Math.min(...rects.map((r) => r.left));
   const t = Math.min(...rects.map((r) => r.top));
   const rr = Math.max(...rects.map((r) => r.left + r.width));
   const b = Math.max(...rects.map((r) => r.top + r.height));
   return { left: l, top: t, width: rr - l, height: b - t };
-}
-
-/** A hover outline for "pick a block" mode (one box, replaced on every call; null removes it). */
-export function hoverBox(doc: Document, el: Element | null): void {
-  const win = doc.defaultView;
-  const ov = overlay(doc);
-  ov.querySelectorAll(".gds-box.gds-hover").forEach((n) => n.remove());
-  if (!el || !win) return;
-  const r = docRects(win, [el.getBoundingClientRect()]);
-  if (r.length) box(doc, ov, "gds-box gds-hover", r[0], 2);
-}
-
-/** Scroll the frame (only the frame, never the parent page) so `r` sits in the middle. */
-export function scrollToRect(win: Window, r: Rect): void {
-  const y = r.top + r.height / 2 - win.innerHeight / 2;
-  win.scrollTo({ top: Math.max(0, y), left: 0, behavior: "auto" });
 }

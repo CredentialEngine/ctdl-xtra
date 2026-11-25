@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { layoutFor, nextZoom, readSetting, setPageCss, writeSetting, ZOOM_STEPS } from "./view";
-import type { ReactNode } from "react";
-import { blockOf, captureElement, captureRange, captureSelection, type CapturedSelection } from "./dom";
-import { clear, hoverBox, paint, resolveAll, scrollToRect, type Highlight, type Resolved } from "./paint";
+import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { nextZoom, ZOOM_STEPS } from "./view";
+import type { CapturedSelection } from "./dom";
+import type { Highlight } from "./paint";
 import { SourceView } from "./SourceView";
 import { HighlightBar, type BarAction, type BarAt } from "./HighlightBar";
+import { usePagePane, type BarState, type PaneMode, type PaneState, type ViewSettings } from "./usePagePane";
 import "./pagepane.css";
+
+export { LAYOUT_WIDTH, prefetchPages, renderUrl } from "./pages";
+export { barAt } from "./frameEvents";
 
 export interface PageTab {
   stem: string;
@@ -38,42 +41,171 @@ export interface PagePaneProps {
   ruleset?: number | null;
 }
 
-export const LAYOUT_WIDTH = 1400; // desktop width the page is laid out at, then scaled to fit
+export function PagePane(props: PagePaneProps): JSX.Element {
+  const pane = usePagePane(props);
+  return (
+    <div className="gpp-browser" data-testid="page-pane">
+      <PaneTabs tabs={props.tabs} active={pane.active} onActivate={props.onActivate} />
+      <AddressBar active={pane.active} mode={pane.mode} setMode={pane.setMode} />
+      <ViewTools view={pane.view} scale={pane.scale} />
+      {props.legend ? <div className="gpp-ctx sel">{props.legend}</div> : null}
+      {props.banner ? <div className="gpp-ctx">{props.banner}</div> : null}
+      <PaneBody props={props} pane={pane} />
+    </div>
+  );
+}
+
 const MAX_TABS = 3;
-const RESCROLL_MS = [250, 700, 1400];
 
-export function renderUrl(catalog: string, stem: string, ruleset?: number | null): string {
-  const q = ruleset != null ? `?ruleset=${ruleset}` : "";
-  return `/api/catalogs/${encodeURIComponent(catalog)}/pages/${encodeURIComponent(stem)}/render${q}`;
+function PaneTabs({ tabs, active, onActivate }: { tabs: PageTab[]; active: PageTab | null; onActivate(stem: string): void }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const { shown, hidden } = splitTabs(tabs, active);
+  return (
+    <div className="gpp-tabs">
+      <div className="gpp-dots" aria-hidden="true"><i /><i /><i /></div>
+      <div className="gpp-tabs-in" role="tablist">
+        {shown.map((t, i) => <PaneTab key={t.stem} tab={t} index={i} on={t.stem === active?.stem} onActivate={onActivate} />)}
+        {hidden.length > 0 && <MoreTabs hidden={hidden} open={moreOpen} setOpen={setMoreOpen} onActivate={onActivate} />}
+      </div>
+    </div>
+  );
 }
 
-const prefetched = new Set<string>();
-const queue: string[] = [];
-let inflight = 0;
-
-function pump(): void {
-  while (inflight < 2 && queue.length) {
-    const url = queue.shift()!;
-    inflight++;
-    fetch(url, { credentials: "same-origin" })
-      .then((r) => r.arrayBuffer())
-      .catch(() => prefetched.delete(url))
-      .finally(() => {
-        inflight--;
-        pump();
-      });
-  }
+/** The first tabs, with the active one always among them; the rest go under "+n". */
+function splitTabs(tabs: PageTab[], active: PageTab | null): { shown: PageTab[]; hidden: PageTab[] } {
+  const shown = tabs.slice(0, MAX_TABS);
+  if (active && !shown.some((t) => t.stem === active.stem)) shown[shown.length - 1] = active;
+  return { shown, hidden: tabs.filter((t) => !shown.includes(t)) };
 }
 
-/** Warm the server's render cache and the browser's HTTP cache for pages about to be shown (next rows). */
-export function prefetchPages(catalog: string, stems: string[], ruleset?: number | null): void {
-  for (const stem of stems) {
-    const url = renderUrl(catalog, stem, ruleset);
-    if (prefetched.has(url)) continue;
-    prefetched.add(url);
-    queue.push(url);
-  }
-  pump();
+function PaneTab({ tab, index, on, onActivate }: { tab: PageTab; index: number; on: boolean; onActivate(stem: string): void }) {
+  return (
+    <button role="tab" aria-selected={on} className={`gpp-tab${on ? " on" : ""}`} title={tab.title} onClick={() => onActivate(tab.stem)}>
+      {tab.badge != null && <span className={`gpp-num${index ? " alt" : ""}`}>{tab.badge}</span>}
+      <span className="gpp-tab-t">{tab.title || tab.stem}</span>
+    </button>
+  );
+}
+
+function MoreTabs({ hidden, open, setOpen, onActivate }: { hidden: PageTab[]; open: boolean;
+  setOpen: Dispatch<SetStateAction<boolean>>; onActivate(stem: string): void }) {
+  return (
+    <div className="gpp-more">
+      <button className="gpp-more-btn" onClick={() => setOpen((o) => !o)} aria-expanded={open}>+{hidden.length}</button>
+      {open && <MoreMenu hidden={hidden} onPick={(stem) => { setOpen(false); onActivate(stem); }} />}
+    </div>
+  );
+}
+
+function MoreMenu({ hidden, onPick }: { hidden: PageTab[]; onPick(stem: string): void }) {
+  return (
+    <div className="gpp-more-menu" role="menu">
+      {hidden.map((t) => (
+        <button key={t.stem} role="menuitem" onClick={() => onPick(t.stem)}>
+          {t.badge != null && <span className="gpp-num alt">{t.badge}</span>}
+          <span className="gpp-tab-t">{t.title || t.stem}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function AddressBar({ active, mode, setMode }: { active: PageTab | null; mode: PaneMode; setMode(mode: PaneMode): void }) {
+  return (
+    <div className="gpp-url">
+      <div className="gpp-addr" title={active?.url}>{active?.url ?? ""}</div>
+      <div className="gpp-seg" role="group" aria-label="View" data-tour="page-html-switch">
+        <button className={mode === "page" ? "on" : ""} onClick={() => setMode("page")}>Page</button>
+        <button className={mode === "html" ? "on" : ""} onClick={() => setMode("html")}>HTML</button>
+      </div>
+      <a className="gpp-ext" data-tour="open-live" href={active?.url ?? undefined} target="_blank" rel="noopener noreferrer"
+        title="Open the live page">
+        <ExtIcon />
+      </a>
+    </div>
+  );
+}
+
+function ViewTools({ view, scale }: { view: ViewSettings; scale: number }) {
+  const { pageCss, toggleCss } = view;
+  return (
+    <div className="gpp-tools" role="toolbar" aria-label="Page view" data-tour="page-view-tools">
+      <ZoomControls view={view} scale={scale} />
+      <span className="gpp-tools-sep" />
+      <label className={`gpp-check${pageCss ? "" : " off"}`}
+        title="Turn the page's own styles off to see its plain content and structure (highlights stay)">
+        <input type="checkbox" checked={pageCss} onChange={toggleCss} /> Page CSS
+      </label>
+      {!pageCss && <span className="gpp-tools-note">styles off</span>}
+    </div>
+  );
+}
+
+function ZoomControls({ view: { zoom, changeZoom }, scale }: { view: ViewSettings; scale: number }) {
+  return (
+    <>
+      <button className="gpp-tool" onClick={() => changeZoom(nextZoom(zoom, -1))} disabled={zoom <= ZOOM_STEPS[0]}
+        title="Zoom out" aria-label="Zoom out"><ZoomIcon plus={false} /></button>
+      <button className="gpp-zoom" onClick={() => changeZoom(1)} title="Reset zoom (fit the page to the pane)">
+        {Math.round(scale * 100)}%
+      </button>
+      <button className="gpp-tool" onClick={() => changeZoom(nextZoom(zoom, 1))}
+        disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} title="Zoom in" aria-label="Zoom in"><ZoomIcon plus /></button>
+    </>
+  );
+}
+
+function PaneBody({ props, pane }: { props: PagePaneProps; pane: PaneState }) {
+  const { src, loaded, mode, active } = pane;
+  return (
+    <div className={`gpp-body${props.pickBlock ? " picking" : ""}`} ref={pane.bodyRef}>
+      {src ? <PageFrame key={props.catalog} src={src} pane={pane} /> : <div className="gpp-empty">No page to show.</div>}
+      {src && !loaded && mode === "page" && <div className="gpp-loading">Loading saved page…</div>}
+      <PaneBar bar={pane.bar} actions={props.barActions} mode={mode} scale={pane.scale} />
+      {mode === "html" && active && (
+        <SourceView catalog={props.catalog} stem={active.stem} target={pane.sourceTarget} />
+      )}
+    </div>
+  );
+}
+
+function PageFrame({ src, pane }: { src: string; pane: PaneState }) {
+  return (
+    <iframe
+      ref={pane.frameRef}
+      src={src}
+      title={pane.active?.title ?? "Saved page"}
+      sandbox="allow-same-origin"
+      referrerPolicy="no-referrer"
+      onLoad={pane.onLoad}
+      style={frameStyleOf(pane)}
+    />
+  );
+}
+
+function frameStyleOf({ layoutWidth, size, scale, mode }: PaneState) {
+  return {
+    width: layoutWidth,
+    height: size.h > 0 ? size.h / scale : "100%",
+    transform: `scale(${scale})`,
+    visibility: mode === "page" ? ("visible" as const) : ("hidden" as const),
+  };
+}
+
+function PaneBar({ bar, actions, mode, scale }: { bar: BarState; actions?: BarAction[] | null; mode: PaneMode; scale: number }) {
+  const at = barWhereItsTextIs(bar.bar, bar.frameY, scale);
+  if (!at || at.y < 0 || mode !== "page" || !actions?.length) return null;
+  const onPointer = (on: boolean) => { if (!bar.barRef.current?.hover) return; if (on) bar.keepHover(); else bar.dropHover(); };
+  return (
+    <HighlightBar key={`${at.sel.css_path}|${at.sel.char_start}|${at.sel.char_end}`} at={at}
+      actions={actions} onDone={bar.closeBar} onPointer={onPointer}
+      onPin={() => bar.setBar((b) => (b ? { ...b, hover: undefined } : b))} />
+  );
+}
+
+/** The bar where its text is now; out of sight (negative y) while its text is scrolled above the pane. */
+function barWhereItsTextIs(bar: BarAt | null, frameY: number, scale: number): BarAt | null {
+  return bar ? { ...bar, y: bar.y - (frameY - (bar.scrollY ?? frameY)) * scale } : null;
 }
 
 const ExtIcon = () => (
@@ -82,369 +214,6 @@ const ExtIcon = () => (
       stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
-
-export function PagePane(props: PagePaneProps): JSX.Element {
-  const { catalog, tabs, activeStem, onActivate, highlights, focusId, banner, legend, ruleset } = props;
-  const [mode, setMode] = useState<"page" | "html">("page");
-  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  const [zoom, setZoom] = useState<number>(() => readSetting("zoom", 1));
-  const [pageCss, setPageCssOn] = useState<boolean>(() => readSetting("css", true));
-  const { width: layoutWidth, scale } = layoutFor(size.w, LAYOUT_WIDTH, zoom);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const bodyRef = useRef<HTMLDivElement>(null);
-  const frameRef = useRef<HTMLIFrameElement>(null);
-  const timers = useRef<number[]>([]);
-  const latest = useRef(props);
-  latest.current = props;
-  const [bar, setBar] = useState<BarAt | null>(null);  // the highlight bar, over the selection it is about
-  const [frameY, setFrameY] = useState(0);  // the page's scroll while the bar is up: the bar follows its text
-  const barUp = useRef(false);
-  barUp.current = !!bar;
-  const barRef = useRef<BarAt | null>(null);
-  barRef.current = bar;
-  // the painted text a hover shows the bar for: the value found and the pieces of an answer
-  const hoverables = useRef<Resolved[]>([]);
-  const hideTimer = useRef<number | undefined>(undefined);
-  const keepHover = useCallback(() => window.clearTimeout(hideTimer.current), []);
-  // a hover bar goes a moment after the pointer leaves its text, so the pointer can reach the bar
-  const dropHover = useCallback(() => {
-    window.clearTimeout(hideTimer.current);
-    hideTimer.current = window.setTimeout(() => setBar((b) => (b?.hover ? null : b)), HOVER_GRACE_MS);
-  }, []);
-  const scaleRef = useRef(scale);
-  scaleRef.current = scale;
-
-  const active = tabs.find((t) => t.stem === activeStem) ?? tabs[0] ?? null;
-  const src = active ? renderUrl(catalog, active.stem, ruleset) : null;
-  const loaded = src != null && loadedSrc === src;
-
-  // --- scale to fit -------------------------------------------------------------------------------
-  useLayoutEffect(() => {
-    const body = bodyRef.current;
-    if (!body) return;
-    const fit = () => {
-      const w = body.clientWidth;
-      const h = body.clientHeight;
-      setSize({ w, h });
-    };
-    fit();
-    if (typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(fit);
-    ro.observe(body);
-    return () => ro.disconnect();
-  }, []);
-
-  const doc = useCallback((): Document | null => {
-    try {
-      return frameRef.current?.contentDocument ?? null;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  // --- highlights ----------------------------------------------------------------------------------
-  const apply = useCallback(
-    (scroll: boolean) => {
-      const d = doc();
-      if (!d || !d.documentElement || !d.body) return;
-      const { highlights: hs, focusId: fid } = latest.current;
-      const resolved = resolveAll(d, hs);
-      hoverables.current = resolved.filter((r) => r.range && HOVERABLE.has(r.h.kind));
-      const focus = paint(d, resolved, fid);
-      if (scroll && focus && d.defaultView) scrollToRect(d.defaultView, focus);
-    },
-    [doc],
-  );
-
-  const schedule = useCallback(
-    (scroll: boolean) => {
-      timers.current.forEach((t) => window.clearTimeout(t));
-      apply(scroll);
-      // re-apply while web fonts and late CSS settle (positions move); a newer call cancels these
-      timers.current = RESCROLL_MS.map((ms) => window.setTimeout(() => apply(scroll), ms));
-    },
-    [apply],
-  );
-
-  useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
-
-  useEffect(() => {
-    if (loaded) schedule(true);
-  }, [loaded, highlights, focusId, schedule]);
-
-  useEffect(() => {
-    if (loaded) schedule(false);
-  }, [scale, layoutWidth, size.w, loaded, schedule]);
-
-  // --- view settings: zoom and the page's own CSS (remembered in this browser) ----------------------
-  const changeZoom = useCallback((z: number) => { setZoom(z); writeSetting("zoom", z); }, []);
-  const toggleCss = useCallback(() => {
-    setPageCssOn((on) => { writeSetting("css", !on); return !on; });
-  }, []);
-  useEffect(() => {
-    const d = doc();
-    if (d && loaded) {
-      setPageCss(d, pageCss);
-      schedule(true); // positions move when the styles change: bring the value back into view
-    }
-  }, [pageCss, loaded, doc, schedule]);
-
-  // --- events inside the frame (the page's own scripts never run; these are the parent's listeners) -------
-  const onLoad = useCallback(() => {
-    const d = doc();
-    const frame = frameRef.current;
-    if (!d || !frame) return;
-    // the iframe's current URL tells us which page finished loading
-    const loadedPath = (() => {
-      try {
-        const loc = frame.contentWindow?.location;
-        return loc ? loc.pathname + loc.search : null;
-      } catch {
-        return null;
-      }
-    })();
-    if (!loadedPath || loadedPath === "blank" || loadedPath.startsWith("about:")) return;
-    d.addEventListener(
-      "click",
-      (e) => {
-        const t = e.target as Element | null;
-        const p = latest.current;
-        const x = t && typeof t.closest === "function" ? t.closest(".gds-x") : null;
-        if (x) {
-          e.preventDefault();
-          e.stopPropagation();
-          p.onRemove?.(x.getAttribute("data-id") ?? "");
-          return;
-        }
-        const a = t && typeof t.closest === "function" ? t.closest("a, area, form, button, input[type=submit]") : null;
-        if (a) e.preventDefault();
-        if (p.pickBlock && p.onPickBlock && t) {
-          const sel = d.getSelection();
-          if (sel && !sel.isCollapsed) return; // a drag-selection is handled on mouseup
-          const block = blockOf(t, d.defaultView);
-          if (block) {
-            e.preventDefault();
-            p.onPickBlock(captureElement(block));
-          }
-        }
-      },
-      true,
-    );
-    d.addEventListener("mousedown", () => setBar(null));
-    // the page scrolls (the reader, or the pane centring a new piece of the answer): the bar moves with its text
-    d.addEventListener("scroll", () => { if (barUp.current) setFrameY(d.defaultView?.scrollY ?? 0); }, { passive: true });
-    d.addEventListener("keydown", (e) => { if (e.key === "Escape") { setBar(null); d.getSelection()?.removeAllRanges(); } });
-    d.addEventListener("mouseup", () => {
-      const p = latest.current;
-      const sel = d.getSelection();
-      const cap = captureSelection(sel);
-      if (!cap) return;
-      if (p.barActions?.length && sel && sel.rangeCount) {
-        const y0 = d.defaultView?.scrollY ?? 0;
-        const at = { ...barAt(cap, sel.getRangeAt(0).getBoundingClientRect(), scaleRef.current), scrollY: y0 };
-        setFrameY(y0);
-        if (p.captureFirst && p.onSelection) {
-          p.onSelection(cap);
-          sel.removeAllRanges();  // it is outlined as a piece of the answer now
-        }
-        setBar(at);
-        return;
-      }
-      if (p.captureSelection && p.onSelection) {
-        p.onSelection(cap);
-        sel?.removeAllRanges();
-      } else if (p.pickBlock && p.onPickBlock) {
-        p.onPickBlock(cap);
-        sel?.removeAllRanges();
-      }
-    });
-    d.addEventListener("mousemove", (e) => {
-      const p = latest.current;
-      if (p.barActions?.length && !e.buttons) hoverAt(e.clientX, e.clientY);
-      if (!p.pickBlock) return;
-      const t = e.target as Element | null;
-      hoverBox(d, t ? blockOf(t, d.defaultView) : null);
-    });
-    d.addEventListener("mouseleave", () => { hoverBox(d, null); if (barRef.current?.hover) dropHover(); });
-    // hovering text already highlighted shows the bar for it; a bar from a drag stays until it is used or dismissed
-    const hoverAt = (x: number, y: number) => {
-      const cur = barRef.current;
-      if (cur && !cur.hover) return;
-      const s = d.getSelection();
-      if (s && !s.isCollapsed) return;
-      const hit = hoverables.current.find((r) => [...r.range!.getClientRects()]
-        .some((q) => x >= q.left && x <= q.right && y >= q.top && y <= q.bottom));
-      if (!hit) { if (cur?.hover) dropHover(); return; }
-      keepHover();
-      if (cur?.hover === hit.h.id) return;
-      const cap = captureRange(hit.range!);
-      if (!cap) return;
-      const y0 = d.defaultView?.scrollY ?? 0;
-      setFrameY(y0);
-      setBar({ ...barAt(cap, hit.range!.getBoundingClientRect(), scaleRef.current), scrollY: y0, hover: hit.h.id });
-    };
-    d.defaultView?.addEventListener("resize", () => apply(false));
-    setLoadedSrc(loadedPath); // compared with `src`: a late load of an older page never counts as loaded
-  }, [apply, doc, dropHover, keepHover]);
-
-  // --- the highlight bar: gone with its page, when its actions go, on Esc, and on a click anywhere else ---------------
-  const closeBar = useCallback(() => {
-    window.clearTimeout(hideTimer.current);
-    setBar(null);
-    try { doc()?.getSelection()?.removeAllRanges(); } catch { /* the frame went away */ }
-  }, [doc]);
-  const hasBar = !!props.barActions?.length;
-  useEffect(() => { setBar(null); }, [src, hasBar]);
-  useEffect(() => () => window.clearTimeout(hideTimer.current), []);
-  useEffect(() => {
-    if (!bar) return;
-    const key = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.stopPropagation();  // Esc closes only the bar (capture phase: before the tab's own Esc)
-      closeBar();
-    };
-    // a click anywhere else also clears the selection: a selection left on the page looks kept, but isn't
-    const down = (e: MouseEvent) => { if (!(e.target as Element | null)?.closest?.(".gpp-hbar")) closeBar(); };
-    window.addEventListener("keydown", key, true);
-    window.addEventListener("mousedown", down, true);
-    return () => { window.removeEventListener("keydown", key, true); window.removeEventListener("mousedown", down, true); };
-  }, [bar, closeBar]);
-
-  // clear stale paint when picking mode turns off
-  useEffect(() => {
-    const d = doc();
-    if (d && loaded && !props.pickBlock) hoverBox(d, null);
-  }, [props.pickBlock, loaded, doc]);
-
-  useEffect(() => {
-    const d = doc();
-    return () => {
-      if (d) clear(d);
-    };
-  }, [src, doc]);
-
-  // --- tabs -----------------------------------------------------------------------------------------
-  const shown = tabs.slice(0, MAX_TABS);
-  if (active && !shown.some((t) => t.stem === active.stem)) shown[shown.length - 1] = active;
-  const hidden = tabs.filter((t) => !shown.includes(t));
-
-  const sourceTarget = useMemo(() => {
-    const byFocus = highlights.find((h) => h.id === focusId);
-    return byFocus ?? highlights.find((h) => h.kind === "value" || h.kind === "expected") ?? highlights[0] ?? null;
-  }, [highlights, focusId]);
-
-  // the bar where its text is now; out of sight while its text is scrolled above the pane
-  const barShown = bar ? { ...bar, y: bar.y - (frameY - (bar.scrollY ?? frameY)) * scale } : null;
-  const frameStyle = {
-    width: layoutWidth,
-    height: size.h > 0 ? size.h / scale : "100%",
-    transform: `scale(${scale})`,
-    visibility: mode === "page" ? ("visible" as const) : ("hidden" as const),
-  };
-
-  return (
-    <div className="gpp-browser" data-testid="page-pane">
-      <div className="gpp-tabs">
-        <div className="gpp-dots" aria-hidden="true"><i /><i /><i /></div>
-        <div className="gpp-tabs-in" role="tablist">
-          {shown.map((t, i) => (
-            <button
-              key={t.stem}
-              role="tab"
-              aria-selected={t.stem === active?.stem}
-              className={`gpp-tab${t.stem === active?.stem ? " on" : ""}`}
-              title={t.title}
-              onClick={() => onActivate(t.stem)}
-            >
-              {t.badge != null && <span className={`gpp-num${i ? " alt" : ""}`}>{t.badge}</span>}
-              <span className="gpp-tab-t">{t.title || t.stem}</span>
-            </button>
-          ))}
-          {hidden.length > 0 && (
-            <div className="gpp-more">
-              <button className="gpp-more-btn" onClick={() => setMoreOpen((o) => !o)} aria-expanded={moreOpen}>
-                +{hidden.length}
-              </button>
-              {moreOpen && (
-                <div className="gpp-more-menu" role="menu">
-                  {hidden.map((t) => (
-                    <button key={t.stem} role="menuitem" onClick={() => { setMoreOpen(false); onActivate(t.stem); }}>
-                      {t.badge != null && <span className="gpp-num alt">{t.badge}</span>}
-                      <span className="gpp-tab-t">{t.title || t.stem}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="gpp-url">
-        <div className="gpp-addr" title={active?.url}>{active?.url ?? ""}</div>
-        <div className="gpp-seg" role="group" aria-label="View" data-tour="page-html-switch">
-          <button className={mode === "page" ? "on" : ""} onClick={() => setMode("page")}>Page</button>
-          <button className={mode === "html" ? "on" : ""} onClick={() => setMode("html")}>HTML</button>
-        </div>
-        <a className="gpp-ext" data-tour="open-live" href={active?.url ?? undefined} target="_blank" rel="noopener noreferrer"
-          title="Open the live page">
-          <ExtIcon />
-        </a>
-      </div>
-      <div className="gpp-tools" role="toolbar" aria-label="Page view" data-tour="page-view-tools">
-        <button className="gpp-tool" onClick={() => changeZoom(nextZoom(zoom, -1))} disabled={zoom <= ZOOM_STEPS[0]}
-          title="Zoom out" aria-label="Zoom out"><ZoomIcon plus={false} /></button>
-        <button className="gpp-zoom" onClick={() => changeZoom(1)} title="Reset zoom (fit the page to the pane)">
-          {Math.round(scale * 100)}%
-        </button>
-        <button className="gpp-tool" onClick={() => changeZoom(nextZoom(zoom, 1))}
-          disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]} title="Zoom in" aria-label="Zoom in"><ZoomIcon plus /></button>
-        <span className="gpp-tools-sep" />
-        <label className={`gpp-check${pageCss ? "" : " off"}`}
-          title="Turn the page's own styles off to see its plain content and structure (highlights stay)">
-          <input type="checkbox" checked={pageCss} onChange={toggleCss} /> Page CSS
-        </label>
-        {!pageCss && <span className="gpp-tools-note">styles off</span>}
-      </div>
-      {legend ? <div className="gpp-ctx sel">{legend}</div> : null}
-      {banner ? <div className="gpp-ctx">{banner}</div> : null}
-      <div className={`gpp-body${props.pickBlock ? " picking" : ""}`} ref={bodyRef}>
-        {src ? (
-          <iframe
-            ref={frameRef}
-            key={catalog}
-            src={src}
-            title={active?.title ?? "Saved page"}
-            sandbox="allow-same-origin"
-            referrerPolicy="no-referrer"
-            onLoad={onLoad}
-            style={frameStyle}
-          />
-        ) : (
-          <div className="gpp-empty">No page to show.</div>
-        )}
-        {src && !loaded && mode === "page" && <div className="gpp-loading">Loading saved page…</div>}
-        {barShown && barShown.y >= 0 && mode === "page" && props.barActions?.length ? <HighlightBar key={`${barShown.sel.css_path}|${barShown.sel.char_start}|${barShown.sel.char_end}`} at={barShown}
-          actions={props.barActions} onDone={closeBar} onPointer={(on) => { if (!barRef.current?.hover) return; if (on) keepHover(); else dropHover(); }}
-          onPin={() => setBar((b) => (b ? { ...b, hover: undefined } : b))} /> : null}
-        {mode === "html" && active && (
-          <SourceView catalog={catalog} stem={active.stem} target={sourceTarget} />
-        )}
-      </div>
-    </div>
-  );
-}
-
-const BAR_H = 30;
-const HOVER_GRACE_MS = 350;  // a hover bar's time to reach it after leaving its text
-const HOVERABLE = new Set(["value", "expected", "excluded"]);  // the highlight bar's height in the pane (pagepane.css .gpp-hbar)
-
-/** Where the highlight bar goes, in the pane's pixels: centred just above the selection (its rect is in the frame's
- * unscaled pixels), or just below it when there's no room above. HighlightBar keeps it inside the pane's sides. */
-export function barAt(sel: CapturedSelection, r: { left: number; right: number; top: number; bottom: number }, scale: number): BarAt {
-  const above = r.top * scale - BAR_H - 6;
-  return { sel, x: ((r.left + r.right) / 2) * scale, y: above >= 0 ? above : r.bottom * scale + 6 };
-}
 
 function ZoomIcon({ plus }: { plus: boolean }) {
   return (
