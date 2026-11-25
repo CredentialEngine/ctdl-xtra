@@ -22,22 +22,27 @@ export const CLASS_NAME: Record<ClassSel, string> = { course: "Course", learning
 export interface Route { catalog: string | null; cls: ClassSel; tab: Tab; id: string | null; params: URLSearchParams }
 
 export function parseRoute(hash: string): Route {
-  const h = hash.replace(/^#/, "") || "/";
-  const [path, qs] = h.split("?");
+  const [path, qs] = (hash.replace(/^#/, "") || "/").split("?");
   const p = path.split("/").filter(Boolean).map(decodeURIComponent);
   const params = new URLSearchParams(qs || "");
   if (p[0] !== "c" || !p[1]) return { catalog: null, cls: "course", tab: "rules", id: null, params };
   const cls = p[2] as ClassSel;
   if (!(CLASS_SLUGS as string[]).includes(cls) && cls !== "all")  // a link from before classes: not kept
     return { catalog: p[1], cls: "course", tab: "rules", id: null, params: new URLSearchParams() };
-  if (p[3] === "prompt") {  // the Prompt tab became a modal over the Rules tab
-    params.delete("rule");
-    params.set("prompt", "1");
-    return { catalog: p[1], cls, tab: "rules", id: null, params };
-  }
-  const name = RENAMED[p[3]] ?? p[3];
-  const tab = (TABS as string[]).includes(name) ? (name as Tab) : "rules";
-  return { catalog: p[1], cls, tab, id: p[4] ?? null, params };
+  if (p[3] === "prompt") return promptRoute(p[1], cls, params);
+  return { catalog: p[1], cls, tab: tabNamed(p[3]), id: p[4] ?? null, params };
+}
+
+// the Prompt tab became a modal over the Rules tab
+function promptRoute(catalog: string, cls: ClassSel, params: URLSearchParams): Route {
+  params.delete("rule");
+  params.set("prompt", "1");
+  return { catalog, cls, tab: "rules", id: null, params };
+}
+
+function tabNamed(segment: string | undefined): Tab {
+  const name = RENAMED[segment as string] ?? segment;
+  return (TABS as string[]).includes(name as string) ? (name as Tab) : "rules";
 }
 
 /** The class the address bar names now (Course on the picker). */
