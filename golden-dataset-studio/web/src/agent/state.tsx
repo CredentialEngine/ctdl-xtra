@@ -1,7 +1,7 @@
 // One poll of the catalog's run for the whole page (run bar, run buttons, Watch panel): every 3 s while the tab is
 // visible. Each poll also moves the run forward on the server (a waiting run is sent when the agent is free).
 // Notes accumulate: only lines after the last one seen are fetched.
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import { inClass, noteRunClass } from "../shell/klass";
 import { CLASS_NAME, type ClassSlug } from "../shell/router";
 import { agentApi, LIVE, type AgentConfig, type AgentRun, type CurrentRun, type LiveRun, type RecentRun, type RunNote, type Slots } from "./api";
@@ -22,36 +22,65 @@ export interface AgentState {
   refresh: () => void;
 }
 
+type PolledState = Omit<AgentState, "config" | "refresh">;
+type Seen = { runId: string | null; notes: RunNote[] };
+type SeenByClass = { key: string; by: Partial<Record<ClassSlug, Seen>> };
+type ClassPoll = { cls: ClassSlug; d: CurrentRun; seen: Seen };
+
 const EMPTY: AgentState = { config: null, run: null, last: null, notes: [], runs: [], recent: {}, slots: null,
   now: new Date().toISOString(), classes: [], refresh: () => {} };
 const Ctx = createContext<AgentState>(EMPTY);
 export const useAgent = () => useContext(Ctx);
 
-/** When the config can't be read (an older server, a network error), runs are off and buttons open the prompt. */
-export const OFF: AgentConfig = { enabled: false, off_reason: "the Studio's server doesn't offer runs", agent_name: "Remote AI rule generator",
-  k2_url: null, agent: null, minutes: 90, prompt_users: [] };
-let configOnce: Promise<AgentConfig> | null = null;
-export function loadAgentConfig(): Promise<AgentConfig> {
-  configOnce ??= agentApi.config().then((c) => (c && typeof c.enabled === "boolean" ? c : OFF), () => OFF);
-  return configOnce;
-}
-/** Tests: forget the cached config. */
-export function resetAgentConfig(): void { configOnce = null; }
-
-export function useAgentConfig(): AgentConfig | null {
-  const [config, setConfig] = useState<AgentConfig | null>(null);
-  useEffect(() => { let live = true; void loadAgentConfig().then((c) => { if (live) setConfig(c); }); return () => { live = false; }; }, []);
-  return config;
-}
-
 export const POLL_MS = 3000;
 
-/** A run's class before its words when several classes are shown ("LearningProgram: Claude is working on Name"). */
-export function classPrefix(r: AgentRun | null | undefined, classes: ClassSlug[]): string {
-  return r?.cls && classes.length > 1 ? `${CLASS_NAME[r.cls]}: ` : "";
+export function AgentProvider({ catalog, classes = ["course"], children }: {
+  catalog: string | null; classes?: ClassSlug[]; children: ReactNode;
+}) {
+  const config = useAgentConfig();
+  const { state, refresh } = useRunPoll(catalog, classes);
+  return <Ctx.Provider value={{ ...state, config, refresh }}>{children}</Ctx.Provider>;
 }
 
-type Seen = { runId: string | null; notes: RunNote[] };
+function useRunPoll(catalog: string | null, classes: ClassSlug[]): { state: PolledState; refresh: () => void } {
+  const [state, setState] = useState<PolledState>(EMPTY);
+  const key = `${catalog}|${classes.join(",")}`;
+  const seen = useRef<SeenByClass>({ key: "", by: {} });
+  const poll = useCallback(async () => {
+    if (!catalog) return;
+    setState(await pollCatalog(catalog, classes, key, seen));
+  }, [catalog, key]);  // eslint-disable-line react-hooks/exhaustive-deps
+  usePollLoop(catalog, key, poll, () => { seen.current = { key, by: {} }; setState(EMPTY); });
+  const refresh = useCallback(() => { poll().catch(() => {}); }, [poll]);
+  return { state, refresh };
+}
+
+/** Restarts on a new catalog or class set: forgets what was seen, then polls now and every POLL_MS while visible. */
+function usePollLoop(catalog: string | null, key: string, poll: () => Promise<void>, reset: () => void): void {
+  useEffect(() => {
+    reset();
+    if (!catalog) return;
+    return startPolling(poll);
+  }, [key, poll]);  // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+function startPolling(poll: () => Promise<void>): () => void {
+  let stop = false;
+  const tick = () => { if (!stop && document.visibilityState !== "hidden") poll().catch(() => {}); };
+  tick();
+  const id = window.setInterval(tick, POLL_MS);
+  const onVis = () => { if (document.visibilityState === "visible") tick(); };
+  document.addEventListener("visibilitychange", onVis);
+  return () => { stop = true; window.clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
+}
+
+async function pollCatalog(catalog: string, classes: ClassSlug[], key: string, seen: MutableRefObject<SeenByClass>): Promise<PolledState> {
+  if (seen.current.key !== key) seen.current = { key, by: {} };
+  const polls = await Promise.all(classes.map((cls) =>
+    pollOne(catalog, cls, seen.current.by[cls] ?? { runId: null, notes: [] }).then((x) => ({ cls, ...x }))));
+  for (const p of polls) seen.current.by[p.cls] = p.seen;
+  return mergePolls(polls, classes);
+}
 
 /** One class's poll: its current run with the notes after the ones already seen. */
 async function pollOne(catalog: string, cls: ClassSlug, s: Seen): Promise<{ d: CurrentRun; seen: Seen }> {
@@ -67,59 +96,59 @@ async function pollOne(catalog: string, cls: ClassSlug, s: Seen): Promise<{ d: C
   return { d, seen: { runId: (d.run ?? d.last)?.run_id ?? null, notes } };
 }
 
-export function AgentProvider({ catalog, classes = ["course"], children }: {
-  catalog: string | null; classes?: ClassSlug[]; children: ReactNode;
-}) {
-  const config = useAgentConfig();
-  const [state, setState] = useState<Omit<AgentState, "config" | "refresh">>(EMPTY);
-  const key = `${catalog}|${classes.join(",")}`;
-  const seen = useRef<{ key: string; by: Partial<Record<ClassSlug, Seen>> }>({ key: "", by: {} });
+function mergePolls(polls: ClassPoll[], classes: ClassSlug[]): PolledState {
+  const merged: PolledState = { run: null, last: null, notes: [], runs: [], recent: {}, slots: null,
+    now: new Date().toISOString(), classes };
+  for (const p of polls) mergePoll(merged, p, classes);
+  merged.runs.sort((a, b) => a.created_at.localeCompare(b.created_at));
+  return merged;
+}
 
-  const poll = useCallback(async () => {
-    if (!catalog) return;
-    if (seen.current.key !== key) seen.current = { key, by: {} };
-    const got = await Promise.all(classes.map((cls) =>
-      pollOne(catalog, cls, seen.current.by[cls] ?? { runId: null, notes: [] }).then((x) => ({ cls, ...x }))));
-    const tag = <T extends AgentRun | null>(r: T, cls: ClassSlug): T => {
-      if (!r || classes.length < 2) return r;
-      noteRunClass(r.run_id, cls);
-      return { ...r, cls };
-    };
-    let runs: LiveRun[] = [], run: AgentRun | null = null, last: AgentRun | null = null, notes: RunNote[] = [];
-    let recent: Record<string, RecentRun> = {}, slots: Slots | null = null, now = new Date().toISOString();
-    for (const { cls, d, seen: s } of got) {
-      seen.current.by[cls] = s;
-      // an older server has only `run`: it is the one live run
-      const mine = d.runs ?? (d.run ? [{ ...d.run, notes: s.notes, queue: { place: null, start_in_min: null, left_min: null, minutes_so_far: null } }] : []);
-      runs = [...runs, ...mine.map((r) => tag(r, cls))];
-      if (d.run && !run) { run = tag(d.run, cls); notes = s.notes; }
-      if (d.last && (!last || (d.last.ended_at ?? "") > (last.ended_at ?? ""))) {
-        last = tag(d.last, cls);
-        if (!run) notes = s.notes;
-      }
-      recent = { ...recent, ...(d.recent ?? {}) };
-      slots = slots ?? d.slots ?? null;
-      now = d.now;
-    }
-    runs.sort((a, b) => a.created_at.localeCompare(b.created_at));
-    setState({ run, last, notes, runs, recent, slots, now, classes });
-  }, [catalog, key]);  // eslint-disable-line react-hooks/exhaustive-deps
+function mergePoll(merged: PolledState, { cls, d, seen }: ClassPoll, classes: ClassSlug[]): void {
+  merged.runs = [...merged.runs, ...liveRunsOf(d, seen).map((r) => tagRun(r, cls, classes))];
+  if (d.run && !merged.run) { merged.run = tagRun(d.run, cls, classes); merged.notes = seen.notes; }
+  if (d.last && (!merged.last || (d.last.ended_at ?? "") > (merged.last.ended_at ?? ""))) {
+    merged.last = tagRun(d.last, cls, classes);
+    if (!merged.run) merged.notes = seen.notes;
+  }
+  merged.recent = { ...merged.recent, ...(d.recent ?? {}) };
+  merged.slots = merged.slots ?? d.slots ?? null;
+  merged.now = d.now;
+}
 
-  useEffect(() => {
-    seen.current = { key, by: {} };
-    setState(EMPTY);
-    if (!catalog) return;
-    let stop = false;
-    const tick = () => { if (!stop && document.visibilityState !== "hidden") poll().catch(() => {}); };
-    tick();
-    const id = window.setInterval(tick, POLL_MS);
-    const onVis = () => { if (document.visibilityState === "visible") tick(); };
-    document.addEventListener("visibilitychange", onVis);
-    return () => { stop = true; window.clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
-  }, [key, poll]);  // eslint-disable-line react-hooks/exhaustive-deps
+/** An older server has only `run`: it is the one live run. */
+function liveRunsOf(d: CurrentRun, seen: Seen): LiveRun[] {
+  return d.runs ?? (d.run ? [{ ...d.run, notes: seen.notes, queue: { place: null, start_in_min: null, left_min: null, minutes_so_far: null } }] : []);
+}
 
-  const refresh = useCallback(() => { poll().catch(() => {}); }, [poll]);
-  return <Ctx.Provider value={{ ...state, config, refresh }}>{children}</Ctx.Provider>;
+/** With several classes polled, a run carries its class (and the class is remembered for its links). */
+function tagRun<T extends AgentRun | null>(r: T, cls: ClassSlug, classes: ClassSlug[]): T {
+  if (!r || classes.length < 2) return r;
+  noteRunClass(r.run_id, cls);
+  return { ...r, cls };
+}
+
+/** When the config can't be read (an older server, a network error), runs are off and buttons open the prompt. */
+export const OFF: AgentConfig = { enabled: false, off_reason: "the Studio's server doesn't offer runs", agent_name: "Remote AI rule generator",
+  k2_url: null, agent: null, minutes: 90, prompt_users: [] };
+let configOnce: Promise<AgentConfig> | null = null;
+
+export function useAgentConfig(): AgentConfig | null {
+  const [config, setConfig] = useState<AgentConfig | null>(null);
+  useEffect(() => { let live = true; void loadAgentConfig().then((c) => { if (live) setConfig(c); }); return () => { live = false; }; }, []);
+  return config;
+}
+
+export function loadAgentConfig(): Promise<AgentConfig> {
+  configOnce ??= agentApi.config().then((c) => (c && typeof c.enabled === "boolean" ? c : OFF), () => OFF);
+  return configOnce;
+}
+/** Tests: forget the cached config. */
+export function resetAgentConfig(): void { configOnce = null; }
+
+/** A run's class before its words when several classes are shown ("LearningProgram: Claude is working on Name"). */
+export function classPrefix(r: AgentRun | null | undefined, classes: ClassSlug[]): string {
+  return r?.cls && classes.length > 1 ? `${CLASS_NAME[r.cls]}: ` : "";
 }
 
 export const isLive = (run: AgentRun | null): boolean => !!run && LIVE.includes(run.state);
