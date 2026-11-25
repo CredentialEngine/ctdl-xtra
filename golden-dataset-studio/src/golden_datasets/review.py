@@ -268,21 +268,23 @@ class Snapshot:
             return bool(self.occ_by_locator.get(rule_id))
         return bool(self.labels_by_rule.get(rule_id))
 
-    def rows_on(self, rule_id: str, stems: set[str]) -> list[dict]:
+    def rows_on(self, rule_id: str, stems: set[str], keys: set[str] | None = None) -> list[dict]:
         """The rule's rows on these pages, as `rows` has them; built for those pages alone when the rule's rows aren't
-        cached (the cache keeps only a few rules, and one verdict's golden file needs one page of every rule)."""
+        cached (the cache keeps only a few rules, and one verdict's golden file needs one page of every rule).
+        `keys`: only the rows with these keys (a course's occurrences: its record)."""
         rows = self._rows.get(rule_id)
         if rows is not None:
-            return [r for r in rows if r["page_stem"] in stems]
-        return self._build_rows(rule_id, stems)
+            return [r for r in rows if r["page_stem"] in stems and (keys is None or r["key"] in keys)]
+        return self._build_rows(rule_id, stems, keys)
 
-    def _build_rows(self, rule_id: str, stems: set[str] | None = None) -> list[dict]:
+    def _build_rows(self, rule_id: str, stems: set[str] | None = None, keys: set[str] | None = None) -> list[dict]:
         rule = self.rules[rule_id]
         out = []
         if rule["kind"] == "property":
             if rule["definition"].get("rule_type") == "none":  # no rule yet: a row per course, to annotate (§4.6)
                 for o in self.occ_by_locator.get(rule["definition"]["locator"], []):
-                    if stems is not None and o["page_stem"] not in stems:
+                    if (stems is not None and o["page_stem"] not in stems) or (keys is not None
+                                                                               and o["occurrence_key"] not in keys):
                         continue
                     out.append({"key": o["occurrence_key"], "occurrence_key": o["occurrence_key"],
                                 "course_key": o["course_key"], "page_stem": o["page_stem"], "value": None,
@@ -292,7 +294,8 @@ class Snapshot:
                 return out
             is_list = bool(rule["definition"].get("multiple"))
             for m in self.matches_by_rule.get(rule_id, []):
-                if m["value_index"] or (stems is not None and m["page_stem"] not in stems):
+                if m["value_index"] or (stems is not None and m["page_stem"] not in stems) or (
+                        keys is not None and m["occurrence_key"] not in keys):
                     continue  # a list: one row per course, its items below
                 o = self.occurrences[m["occurrence_key"]]
                 row = {"key": m["occurrence_key"], "occurrence_key": m["occurrence_key"],
@@ -311,7 +314,8 @@ class Snapshot:
                 out.append(row)
         elif rule["kind"] == "locator":
             for o in self.occ_by_locator.get(rule_id, []):
-                if stems is not None and o["page_stem"] not in stems:
+                if (stems is not None and o["page_stem"] not in stems) or (keys is not None
+                                                                           and o["occurrence_key"] not in keys):
                     continue
                 sig = list(self.signals_by_target.get((rule_id, o["occurrence_key"]), []))
                 sig += [s for s in self.page_signals.get(o["page_stem"], []) if s["rule_id"] == rule_id]
@@ -323,7 +327,7 @@ class Snapshot:
                             "context": self.page[o["page_stem"]]["title"], "signals": sig})
         else:
             for stem in [lb["page_stem"] for lb in self.labels_by_rule.get(rule_id, [])
-                         if stems is None or lb["page_stem"] in stems]:
+                         if (stems is None or lb["page_stem"] in stems) and (keys is None or lb["page_stem"] in keys)]:
                 p = self.page[stem]
                 out.append({"key": stem, "occurrence_key": None, "course_key": None, "page_stem": stem,
                             "value": p["title"], "status": "found", "css_path": None, "char_start": None,
@@ -521,11 +525,14 @@ class Review:
                 out[r["key"]] = sorted(other)
         return out
 
-    def row_states(self, rule_id: str, rows: list[dict], stems: set[str] | None = None) -> dict[str, RowState]:
+    def row_states(self, rule_id: str, rows: list[dict], stems: set[str] | None = None,
+                   only: set[str] | None = None) -> dict[str, RowState]:
         """Each row's state. `stems`: `rows` are the rule's rows on these pages (`Snapshot.rows_on`), and nothing
-        builds the rule's other rows, here or in the parent; their states are those the whole rule's rows get."""
+        builds the rule's other rows, here or in the parent; their states are those the whole rule's rows get.
+        `only` (with `stems`): the states of these row keys alone; the other rows still count (an annotation whose own
+        row exists doesn't re-attach to another), and the parent's rows are built for these keys alone."""
         if stems is not None:
-            return self._row_states(rule_id, rows, stems)
+            return self._row_states(rule_id, rows, stems, only)
         if rows is self.snap.rows(rule_id):
             states = self._states.get(rule_id)
             if states is None:
@@ -535,7 +542,8 @@ class Review:
             return states
         return self._row_states(rule_id, rows)
 
-    def _row_states(self, rule_id: str, rows: list[dict], stems: set[str] | None = None) -> dict[str, RowState]:
+    def _row_states(self, rule_id: str, rows: list[dict], stems: set[str] | None = None,
+                    only: set[str] | None = None) -> dict[str, RowState]:
         rule = self.snap.rules[rule_id]
         v = self.verdicts_for(rule_id)
         latest, expert, comments, every = v["latest"], v["expert"], v["comments"], v["all"]
@@ -570,10 +578,12 @@ class Review:
                 parent_values = {r["key"]: r["value"] for r in self.parent.rows(rule_id)}
                 parent_has_rows = bool(parent_values)
             else:  # a row's key names its page, so the parent's rows on the same pages are the ones that can match
-                parent_values = {r["key"]: r["value"] for r in self.parent.rows_on(rule_id, stems)}
+                parent_values = {r["key"]: r["value"] for r in self.parent.rows_on(rule_id, stems, only)}
                 parent_has_rows = self.parent.has_rows(rule_id)
         out = {}
         for row in rows:
+            if only is not None and row["key"] not in only:
+                continue
             st = RowState()
             e = latest.get(row["key"])
             if e is None and row.get("course_key"):

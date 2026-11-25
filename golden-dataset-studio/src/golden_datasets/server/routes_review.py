@@ -625,9 +625,11 @@ def course(request: Request, catalog: str, course_key: str, ext: str | None = No
                   key=lambda o: (o["locator_rule_id"] != "locator-course-page", o["page_stem"], o["locator_index"]))
     if not occs:
         raise not_found(course_key)
-    # Only the rows on this course's pages: building each rule's whole rows and states (WVU: ~22k per rule, ~40
-    # rules, an 8-rule cache) took ~13 s per record, warm, and pushed the Rules tab's rules out of the cache.
+    # Only the rows on this course's pages, and the states of its own rows: building each rule's whole rows and states
+    # (WVU: ~22k per rule, ~40 rules, an 8-rule cache) took ~13 s per record, warm, and pushed the Rules tab's rules out
+    # of the cache. A course's pages can be long lists of courses, so their other rows only count, they get no state.
     stems = {o["page_stem"] for o in occs}
+    mine = {o["occurrence_key"] for o in occs}
     states_cache: dict = {}
     annotations: dict = {}
     out = []
@@ -639,8 +641,8 @@ def course(request: Request, catalog: str, course_key: str, ext: str | None = No
         for rid in sorted(rids, key=lambda x: (model.PROPERTY_ORDER.get(snap.rules[x].get("property_label"), 99), x)):
             if rid not in states_cache:
                 rows = snap.rows_on(rid, stems)
-                states_cache[rid] = rv.row_states(rid, rows, stems)
-                annotations[rid] = rv.annotations_on(rows, states_cache[rid])
+                states_cache[rid] = rv.row_states(rid, rows, stems, only=mine)
+                annotations[rid] = rv.annotations_on([r for r in rows if r["key"] in mine], states_cache[rid])
             s = states_cache[rid].get(o["occurrence_key"])
             r = snap.rules[rid]
             m = ms.get(rid) or {"value": None, "status": "none", "full_css_path": None, "char_start": None,

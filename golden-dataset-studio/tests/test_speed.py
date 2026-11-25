@@ -4,10 +4,13 @@ own."""
 
 from __future__ import annotations
 
-from test_golden_versions import CAT, ERIC, JARED, B, _mark, _rows, studio  # noqa: F401  (studio: the fixture)
+import json
+
+from test_golden_versions import CAT, ERIC, JARED, RULES, B, _mark, _rows, studio  # noqa: F401  (studio: the fixture)
 from test_scores import _wait, scored  # noqa: F401  (scored: the fixture)
 
 from golden_datasets import golden
+from golden_datasets.cli import main
 from golden_datasets.context import Ctx
 from golden_datasets.review import LOADER, PEOPLE_CACHE, Review
 
@@ -119,3 +122,30 @@ def test_a_course_is_read_from_its_own_pages_with_the_whole_rules_states(studio)
     assert {(p["rule_id"], p["state"], len(p["comments"])) for p in marked} == {
         ("course-name", "correct", 0), ("course-name", "wrong", 0), ("course-code", "correct", 0),
         ("course-code", None, 1)}
+
+
+def test_a_rows_state_alone_is_its_state_in_the_whole_rule(studio, tmp_path, capsys):  # noqa: F811
+    """`row_states(..., stems, only=keys)`: the states of those rows alone, each as the whole rule's rows have it, with
+    the parent's rows built for those keys alone (`rows_on(..., keys)`)."""
+    c, ctx, _ = studio
+    rows = _rows(c, "course-name")
+    _mark(c, ERIC, "course-name", rows["page-0"], "correct")
+    _mark(c, JARED, "course-code", _rows(c, "course-code")["page-1"], "wrong")
+    draft = json.loads(json.dumps(RULES))
+    draft["rules"][3]["definition"]["selector"] = "h1, h2"  # a second ruleset: its extraction has the first as parent
+    (tmp_path / "second.json").write_text(json.dumps(draft))
+    assert main(["rule", "publish", "--root", str(ctx.root.base), "--catalog", CAT, str(tmp_path / "second.json"),
+                 "--note", "second"]) == 0
+    capsys.readouterr()
+    rv = LOADER.review(Ctx(ctx.root, CAT))
+    assert rv.parent is not None
+    for rid in rv.snap.rules:
+        whole = rv.row_states(rid, rv.snap.rows(rid))
+        for stem in {r["page_stem"] for r in rv.snap.rows(rid)}:
+            on_page = rv.snap.rows_on(rid, {stem})
+            for r in on_page:
+                rv.snap._rows.clear()
+                rv.parent._rows.clear()
+                assert rv.snap.rows_on(rid, {stem}, {r["key"]}) == [r]
+                one = rv.row_states(rid, on_page, {stem}, only={r["key"]})
+                assert list(one) == [r["key"]] and vars(one[r["key"]]) == vars(whole[r["key"]])
