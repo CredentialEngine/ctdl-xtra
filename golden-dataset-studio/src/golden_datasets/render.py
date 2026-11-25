@@ -83,8 +83,8 @@ _URL_ATTRS = ("src", "href", "poster", "action", "formaction", "background", "xl
 _ASSET_TAGS = {"img", "source", "video", "input", "link", "image", "use", "audio", "track", "embed"}
 
 _STEP = re.compile(r"^\s*([a-zA-Z][\w:-]*)(?::nth-of-type\((\d+)\))?\s*$")
-_M_EL0, _M_EL1, _M_R0, _M_R1 = "", "", "", ""  # private-use marker characters
-_SPLIT = re.compile("([-])")
+_M_EL0, _M_EL1, _M_R0, _M_R1 = "\ue000", "\ue001", "\ue002", "\ue003"  # private-use marker characters
+_SPLIT = re.compile("([\ue000-\ue003])")
 
 INDEX_TTL = 10.0  # seconds between checks of the manifest and assets.parquet's ETag (each is a round trip on Azure)
 

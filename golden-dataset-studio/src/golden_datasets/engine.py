@@ -34,7 +34,7 @@ _WS = re.compile(r"\s+")
 _TRANSLATOR = HTMLTranslator()
 _NOT_TEXT = (etree._Comment, etree._ProcessingInstruction, etree._Entity)
 _NO_TEXT_TAGS = ("script", "style")  # their text isn't a value (G8)
-_LABEL_END = ""
+_LABEL_END = "\ue000"
 _TRANSFORMS = {
     "strip": str.strip,
     "collapse_ws": lambda value: _WS.sub(" ", value).strip(),
