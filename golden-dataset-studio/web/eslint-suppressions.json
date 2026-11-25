@@ -1,49 +1,4 @@
 {
-  "src/agent/AiStat.tsx": {
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
-  "src/agent/FixBar.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/agent/Report.tsx": {
-    "max-lines-per-function": {
-      "count": 11
-    }
-  },
-  "src/agent/RunBar.tsx": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
-  "src/agent/RunButton.tsx": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/agent/RunDialog.tsx": {
-    "max-lines-per-function": {
-      "count": 5
-    }
-  },
-  "src/agent/RunsPanel.tsx": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
-  "src/agent/api.ts": {
-    "max-lines-per-function": {
-      "count": 3
-    }
-  },
-  "src/agent/state.tsx": {
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "src/catalogs/AddCatalogModal.tsx": {
     "max-lines-per-function": {
       "count": 1
@@ -110,21 +65,6 @@
     }
   },
   "src/golden/GoldenTab.tsx": {
-    "max-lines-per-function": {
-      "count": 4
-    }
-  },
-  "src/prompt/PromptModal.tsx": {
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
-  "src/prompt/highlight.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
-  "src/prompt/markdown.tsx": {
     "max-lines-per-function": {
       "count": 4
     }
