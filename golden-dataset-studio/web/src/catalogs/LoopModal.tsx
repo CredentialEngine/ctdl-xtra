@@ -152,7 +152,7 @@ function useBoxGaps({ ring, nodes }: LoopRefs): Gaps {
       const next = measureGaps(el, nodes.current);
       setGaps((g) => (JSON.stringify(g) === JSON.stringify(next) ? g : next));
     });
-  }, []);
+  }, [ring, nodes]);
   return gaps;
 }
 
@@ -166,19 +166,19 @@ function useFocusAndEscape(ok: RefObject<HTMLButtonElement>, close: () => void) 
 }
 
 // the dot: hold on box k (it pulses as the dot lands and leaves), then run along arrow k to box k+1
-function useTravellingDot(refs: LoopRefs) {
+function useTravellingDot({ nodes, paths, dot }: LoopRefs) {
   useEffect(() => {
     const still = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (still || typeof requestAnimationFrame !== "function") return;
     let raf = 0;
-    const step = dotStepper(refs, performance.now());
+    const step = dotStepper({ nodes, paths, dot }, performance.now());
     const frame = (now: number) => { step(now); raf = requestAnimationFrame(frame); };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [nodes, paths, dot]);
 }
 
-function dotStepper({ nodes, paths, dot }: LoopRefs, t0: number): (now: number) => void {
+function dotStepper({ nodes, paths, dot }: Pick<LoopRefs, "nodes" | "paths" | "dot">, t0: number): (now: number) => void {
   let last = "";
   return (now) => {
     const t = (now - t0) % (N * (HOLD + TRAVEL));

@@ -65,7 +65,7 @@ function useSelection() {
   const [activeStem, setActiveStem] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const select = useCallback((key: string) => { setSel(key); setDraft(null); setActiveStem(null); }, []);
-  const resetForRecord = () => { setDraft(null); setActiveStem(null); setShowAll(false); };
+  const resetForRecord = useCallback(() => { setDraft(null); setActiveStem(null); setShowAll(false); }, []);
   return { sel, setSel, draft, setDraft, activeStem, setActiveStem, showAll, setShowAll, select, resetForRecord };
 }
 
@@ -101,7 +101,7 @@ function useHits({ address: { cat, by, allCls }, cls, q, ruled, error, setError 
     const show = (h: CourseHitX[]) => { if (live) { setHits(h); setHitsFor(listKey); } };
     const t = window.setTimeout(() => findRecords(cat, q, by, allCls ? ruled : null).then(show, (e) => setError(String(e))), q ? 120 : 0);
     return () => { live = false; window.clearTimeout(t); };
-  }, [cat, q, by, allCls, ruledKey, listKey]);
+  }, [cat, q, by, allCls, ruledKey, listKey, setError]);
   return { hits, listLoading: hitsFor !== listKey && !error };
 }
 
@@ -121,16 +121,16 @@ function useOpenFirstRecord({ cat, by, recordKey, allCls, openCls }: Address, hi
   }, [recordKey, hits, q, cat, by]);
 }
 
-function useRecord({ cat, recordKey, openCls }: Address, selection: Selection, setError: (e: string | null) => void) {
+function useRecord({ cat, recordKey, openCls }: Address, { resetForRecord }: Selection, setError: (e: string | null) => void) {
   const [course, setCourse] = useState<CourseDetail | null>(null);
   useEffect(() => {
     if (!recordKey) return;
     let live = true;
-    selection.resetForRecord();
+    resetForRecord();
     api.course(cat, recordKey).then((d) => { if (live) { setCourse(d); setError(null); } },
       (e) => { if (live) { setCourse(null); setError(String(e)); } });
     return () => { live = false; };
-  }, [cat, recordKey, openCls]);
+  }, [cat, recordKey, openCls, resetForRecord, setError]);
   return { course, setCourse };
 }
 
@@ -156,7 +156,7 @@ function useSelectWantedValue(cards: Card[], wantProp: string | null, wantOcc: s
     const card = cards.find((c) => c.property === wantProp) ?? cards[0];
     // the entry the Rules tab came from (a course can be on several pages), else the first
     setSel(valueKey(card.values.find((v) => v.occurrence_key === wantOcc) ?? card.values[0]));
-  }, [cards, wantProp, wantOcc]);
+  }, [cards, wantProp, wantOcc, setSel]);
 }
 
 function useScrollToSelection(list: { listRef: RefObject<HTMLDivElement>; hits: CourseHitX[] | null },
@@ -170,7 +170,7 @@ function useScrollListToRecord(listRef: RefObject<HTMLDivElement>, hits: CourseH
     const box = listRef.current;
     const el = box?.querySelector<HTMLElement>(".course-item.on");
     if (box && el) scrollWithin(box, el, false);
-  }, [hits, recordKey]);
+  }, [hits, recordKey, listRef]);
 }
 
 function useScrollToSelectedCard(sel: string | null, course: CourseDetail | null) {
@@ -195,14 +195,14 @@ function useVerdicts(cat: string, me: string, role: Role | null, setCourse: Disp
                      { sel, setSel, setDraft, setActiveStem }: Selection) {
   const patch = useCallback((v: CardValue, ev: EventBrief) => {
     setCourse((d) => d && patchCourse(d, v, ev, role));
-  }, [role]);
+  }, [role, setCourse]);
   const save = useCallback((v: CardValue, what: Verdict) => saveVerdict({ cat, me, role, v, what, patch, setDraft }),
-    [cat, me, role, patch]);
+    [cat, me, role, patch, setDraft]);
   const pick = useCallback((v: CardValue, k: Pick) => {
     if (valueKey(v) !== sel) { setSel(valueKey(v)); setActiveStem(null); }
     if (k === "correct") { void save(v, { verdict: "correct" }); return; }
     setDraft(newDraft(k, v.verdict, v.state));
-  }, [sel, save]);
+  }, [sel, save, setSel, setActiveStem, setDraft]);
   return { save, pick };
 }
 

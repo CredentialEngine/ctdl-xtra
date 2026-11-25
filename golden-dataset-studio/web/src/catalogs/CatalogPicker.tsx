@@ -249,7 +249,7 @@ function useClassSummaries(added: number, setError: (e: string) => void): Summar
       api.catalogsSummary("human", cls).then((s) => live && setSums((x) => ({ ...x, [cls]: s })), (e) => live && setError(String(e)));
     }
     return () => { live = false; };
-  }, [added]);
+  }, [added, setError]);
   return sums;
 }
 

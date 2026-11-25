@@ -174,7 +174,7 @@ function useAddCatalog(onClose: () => void, onAdded: () => void) {
 
 function useCrawledCatalogs(setError: (e: string) => void): CrawledCatalog[] | null {
   const [items, setItems] = useState<CrawledCatalog[] | null>(null);
-  useEffect(() => { api.crawls().then((r) => setItems(r.items), (e) => setError(String(e.message ?? e))); }, []);
+  useEffect(() => { api.crawls().then((r) => setItems(r.items), (e) => setError(String(e.message ?? e))); }, [setError]);
   return items;
 }
 

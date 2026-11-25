@@ -240,7 +240,7 @@ function Tree({ lines, open }: { lines: TreeLine[]; open: (f: GoldenFile) => voi
     <div className="tree gv-tree">{lines.map(([parts, comment], i) => (
       <div key={i}>{parts.map((p, j) => <TreePart key={j} part={p} open={open} />)}
         {comment && <span className="c">{" ".repeat(Math.max(1, width - plain(parts).length))}# {comment}</span>}
-        {!parts.length && " "}</div>))}
+        {!parts.length && "\u00a0"}</div>))}
     </div>
   );
 }

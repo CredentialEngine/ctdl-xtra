@@ -88,7 +88,7 @@ function useCloseWhenAway(open: boolean, ref: RefObject<HTMLDivElement>, setOpen
     window.addEventListener("mousedown", away);
     window.addEventListener("keydown", esc);
     return () => { window.removeEventListener("mousedown", away); window.removeEventListener("keydown", esc); };
-  }, [open]);
+  }, [open, ref, setOpen]);
 }
 
 function ClassOption({ cls, info: i, checked, onToggle }: { cls: ClassSlug; info: ClassInfo | undefined; checked: boolean; onToggle: () => void }) {
