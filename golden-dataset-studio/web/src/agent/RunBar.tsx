@@ -265,19 +265,31 @@ function OlderReport({ catalog, run, notes, summary }: { catalog: string; run: A
         <span className="run-done-t">{endedLine(run)}</span>
         {published(run) && <CompareLink catalog={catalog} run={run} className="btn primary" />}
       </div>
-      <section className="runs-sec">
-        {summary === undefined ? <p className="faint">Loading the report…</p>
-          : summary ? <div className="prompt-md runs-report"><Markdown text={summary} /></div>
-          : <p className="faint">No report was saved with this run.</p>}
-      </section>
-      <details className="runs-sec run-fold">
-        <summary>Progress notes ({notes.length})</summary>
-        <ol className="run-notes">
-          {notes.length === 0 && <li className="faint">No notes.</li>}
-          {notes.map(renderNote)}
-        </ol>
-      </details>
+      <SavedSummary summary={summary} />
+      <FoldedNotes notes={notes} />
     </div>
+  );
+}
+
+function SavedSummary({ summary }: { summary: string | null | undefined }) {
+  return (
+    <section className="runs-sec">
+      {summary === undefined ? <p className="faint">Loading the report…</p>
+        : summary ? <div className="prompt-md runs-report"><Markdown text={summary} /></div>
+        : <p className="faint">No report was saved with this run.</p>}
+    </section>
+  );
+}
+
+function FoldedNotes({ notes }: { notes: RunNote[] }) {
+  return (
+    <details className="runs-sec run-fold">
+      <summary>Progress notes ({notes.length})</summary>
+      <ol className="run-notes">
+        {notes.length === 0 && <li className="faint">No notes.</li>}
+        {notes.map(renderNote)}
+      </ol>
+    </details>
   );
 }
 
