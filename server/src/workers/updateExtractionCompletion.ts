@@ -66,8 +66,9 @@ async function getStepCompletionStats(
       }
 
       if (
-        rawPageStats.status == PageStatus.SUCCESS &&
-        rawPageStats.dataExtractionStartedAt
+        rawPageStats.dataExtractionStartedAt &&
+        (rawPageStats.status == PageStatus.SUCCESS ||
+          rawPageStats.status == PageStatus.EXTRACTED_NO_DATA)
       ) {
         extractionsAttempted += 1;
         if (rawPageStats.dataItemCount > 0) {
