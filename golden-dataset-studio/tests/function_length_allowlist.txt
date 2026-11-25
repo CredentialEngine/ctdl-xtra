@@ -159,10 +159,6 @@ golden_datasets/server/state.py::Studio.warm_home.run
 golden_datasets/signals.py::_uncovered
 golden_datasets/signals.py::compute
 golden_datasets/signals.py::page_facts
-golden_datasets/storage.py::AzureRoot.__init__
-golden_datasets/storage.py::AzureRoot._append_block
-golden_datasets/storage.py::AzureRoot.local_path
-golden_datasets/storage.py::AzureRoot.write_bytes
 golden_datasets/strata.py::buckets
 golden_datasets/strata.py::groups
 golden_datasets/suite.py::golden_values
